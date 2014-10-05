@@ -3,7 +3,7 @@
 from twisted.web.server import Site
 
 from coldstar.service import ColdStarService
-from coldstar.rest import RestService
+from coldstar.rest import IRestService
 from twisted.application import internet
 from twisted.application.service import Application
 
@@ -16,7 +16,7 @@ application = Application('Coldstar')
 cold_star = ColdStarService()
 cold_star.setServiceParent(application)
 
-rest_service = RestService(cold_star)
+rest_service = IRestService(cold_star)
 rest_resource = rest_service.app.resource()
 
 # root_resource = Resource()
