@@ -33,18 +33,29 @@ class WsLockProtocol(WebSocketServerProtocol):
         self.factory.unregister(self)
 
     def onMessage(self, payload, isBinary):
-        msg = json.loads(payload)
+        self.onMessageReceived(json.loads(payload))
+
+    def onMessageReceived(self, msg):
         command = msg['command']
+        if command == 'acquire_lock':
+            self.sendMessageJson(self.command_acquire_lock(msg['object_id']))
+        elif command == 'release_lock':
+            self.sendMessageJson(self.command_release_lock(msg['object_id'], msg['token']))
+        elif command == 'locker':
+            self.locker = msg['locker']
+
+    def sendMessageJson(self, obj):
+        self.sendMessage(json.dumps(obj))
 
     def command_acquire_lock(self, object_id):
         if not self.locker:
             return False
         if self.lock:
             return False
-        self.factory.acquire_lock(object_id, self.locker)
+        self.sendMessageJson(self.factory.acquire_lock(object_id, self.locker))
 
     def command_release_lock(self, object_id, token):
-        self.factory.release_lock(object_id, token)
+        self.sendMessageJson(self.factory.release_lock(object_id, token))
 
 
 @implementer(IWsLockFactory)
