@@ -11,6 +11,12 @@ __created__ = '05.10.2014'
 
 
 class IWsLockFactory(Interface):
+    def register(self, client):
+        pass
+
+    def unregister(self, client):
+        pass
+
     def acquire_lock(self, object_id, locker):
         pass
 
@@ -20,7 +26,7 @@ class IWsLockFactory(Interface):
 
 class WsLockProtocol(WebSocketServerProtocol):
     def __init__(self):
-        self.lock = None
+        self.locks = {}
         self.locker = None
 
     def onOpen(self):
@@ -28,8 +34,9 @@ class WsLockProtocol(WebSocketServerProtocol):
 
     def onClose(self, wasClean, code, reason):
         WebSocketServerProtocol.onClose(self, wasClean, code, reason)
-        if self.lock:
-            self.factory.release_lock(self.lock.object_id, self.lock.token)
+        if self.locks:
+            for object_id, lock in self.locks.iteritems():
+                self.factory.release_lock(object_id, lock.token)
         self.factory.unregister(self)
 
     def onMessage(self, payload, isBinary):
@@ -37,12 +44,21 @@ class WsLockProtocol(WebSocketServerProtocol):
 
     def onMessageReceived(self, msg):
         command = msg['command']
+
         if command == 'acquire_lock':
-            self.sendMessageJson(self.command_acquire_lock(msg['object_id']))
+            token = self.command_acquire_lock(msg['object_id'])
+            self.sendMessageJson(token)
+
         elif command == 'release_lock':
-            self.sendMessageJson(self.command_release_lock(msg['object_id'], msg['token']))
+            result = self.command_release_lock(msg['object_id'], msg['token'])
+            self.sendMessageJson(result)
+
         elif command == 'locker':
-            self.locker = msg['locker']
+            if not self.locker:
+                self.locker = msg['locker']
+                self.sendMessageJson(True)
+            else:
+                self.sendMessageJson(False)
 
     def sendMessageJson(self, obj):
         self.sendMessage(json.dumps(obj))
@@ -50,12 +66,14 @@ class WsLockProtocol(WebSocketServerProtocol):
     def command_acquire_lock(self, object_id):
         if not self.locker:
             return False
-        if self.lock:
+        if object_id in self.locks:
             return False
-        self.sendMessageJson(self.factory.acquire_lock(object_id, self.locker))
+        return self.factory.acquire_lock(object_id, self.locker)
 
     def command_release_lock(self, object_id, token):
-        self.sendMessageJson(self.factory.release_lock(object_id, token))
+        result = self.factory.release_lock(object_id, token)
+        self.locks.pop(object_id)
+        return result
 
 
 @implementer(IWsLockFactory)
