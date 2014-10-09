@@ -4,8 +4,9 @@ from klein import Klein
 import json
 from twisted.internet import defer
 from twisted.python.components import registerAdapter
+from twisted.web.resource import IResource
 from zope.interface import Interface, implementer
-from coldstar.interfaces import IColdStarService
+from coldstar.interfaces import ITmpLockService
 
 __author__ = 'viruzzz-kun'
 __created__ = '05.10.2014'
@@ -60,7 +61,7 @@ class RestService(object):
 
     @app.route('/prolong_tmp_lock/<object_id>')
     def prolong_tmp_lock(self, request, object_id):
-        token = request.args.get('token', [None])
+        token = request.args.get('token', None)
         if token is None:
             return 'bla'
         result = self.service.prolong_tmp_lock(object_id, token.decode('hex'))
@@ -68,7 +69,7 @@ class RestService(object):
 
     @app.route('/release_lock/<object_id>')
     def release_lock(self, request, object_id):
-        token = request.args.get('token', [None])
+        token = request.args.get('token', None)
         if token is None:
             return 'blah'
         result = self.service.release_lock(object_id, token.decode('hex'))
@@ -85,4 +86,5 @@ class RestService(object):
         defer.returnValue(result)
 
 
-registerAdapter(RestService, IColdStarService, IRestService)
+registerAdapter(RestService, ITmpLockService, IRestService)
+registerAdapter(lambda service: service.app.resource(), IRestService, IResource)

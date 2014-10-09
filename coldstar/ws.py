@@ -4,7 +4,7 @@ from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerF
 import json
 from twisted.python.components import registerAdapter
 from zope.interface import Interface, implementer
-from coldstar.interfaces import IColdStarService
+from coldstar.interfaces import ILockService, ILockSession
 
 __author__ = 'viruzzz-kun'
 __created__ = '05.10.2014'
@@ -25,55 +25,44 @@ class IWsLockFactory(Interface):
 
 
 class WsLockProtocol(WebSocketServerProtocol):
-    def __init__(self):
-        self.locks = {}
-        self.locker = None
+    session = None
 
     def onOpen(self):
         self.factory.register(self)
 
     def onClose(self, wasClean, code, reason):
         WebSocketServerProtocol.onClose(self, wasClean, code, reason)
-        if self.locks:
-            for object_id, lock in self.locks.iteritems():
-                self.factory.release_lock(object_id, lock.token)
+        if self.session:
+            self.session.close()
         self.factory.unregister(self)
 
     def onMessage(self, payload, isBinary):
+        WebSocketServerProtocol.onMessage(self, payload, isBinary)
         self.onMessageReceived(json.loads(payload))
 
     def onMessageReceived(self, msg):
         command = msg['command']
 
-        if command == 'acquire_lock':
-            token = self.command_acquire_lock(msg['object_id'])
-            self.sendMessageJson(token)
-
-        elif command == 'release_lock':
-            result = self.command_release_lock(msg['object_id'], msg['token'])
-            self.sendMessageJson(result)
-
-        elif command == 'locker':
-            if not self.locker:
-                self.locker = msg['locker']
+        if not self.session.locker:
+            if command == 'locker':
+                self.session.start_session(msg['locker'])
                 self.sendMessageJson(True)
+            else:
+                self.sendMessageJson(False)
+        else:
+            if command == 'acquire_lock':
+                token = self.session.acquire_lock(msg['object_id'])
+                self.sendMessageJson(token)
+
+            elif command == 'release_lock':
+                result = self.session.release_lock(msg['object_id'])
+                self.sendMessageJson(result)
+
             else:
                 self.sendMessageJson(False)
 
     def sendMessageJson(self, obj):
         self.sendMessage(json.dumps(obj))
-
-    def command_acquire_lock(self, object_id):
-        if not self.locker:
-            return False
-        if object_id in self.locks:
-            return False
-        return self.factory.acquire_lock(object_id, self.locker)
-
-    def command_release_lock(self, object_id, token):
-        result = self.factory.release_lock(object_id, token)
-        self.locks.pop(object_id)
-        return result
 
 
 @implementer(IWsLockFactory)
@@ -104,7 +93,8 @@ class WsLockFactory(WebSocketServerFactory):
         :param client:
         :return:
         """
-        self.clients.remove(client)
+        if client in self.clients:
+            self.clients.remove(client)
 
     def acquire_lock(self, object_id, locker):
         return self.service.acquire_lock(object_id, locker)
@@ -112,5 +102,11 @@ class WsLockFactory(WebSocketServerFactory):
     def release_lock(self, object_id, token):
         return self.service.release_lock(object_id, token)
 
+    def buildProtocol(self, addr):
+        protocol = self.protocol()
+        protocol.factory = self
+        protocol.session = ILockSession(self.service)
+        return protocol
 
-registerAdapter(WsLockFactory, IColdStarService, IWsLockFactory)
+
+registerAdapter(WsLockFactory, ILockService, IWsLockFactory)

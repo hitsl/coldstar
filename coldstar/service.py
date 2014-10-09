@@ -3,9 +3,10 @@
 import uuid
 from twisted.application.service import Service
 import time
+from twisted.python.components import registerAdapter
 
 from zope.interface import implementer
-from coldstar.interfaces import IColdStarService
+from coldstar.interfaces import ILockService, ITmpLockService, ILockSession
 
 
 __author__ = 'viruzzz-kun'
@@ -48,8 +49,11 @@ class LockInfo(object):
         }
 
 
-@implementer(IColdStarService)
+@implementer(ILockService, ITmpLockService)
 class ColdStarService(Service):
+    short_timeout = 60
+    long_timeout = 3600
+
     def __init__(self):
         self.__locks = {}
         self.__timeouts = {}
@@ -66,7 +70,9 @@ class ColdStarService(Service):
             lock = self.__locks[object_id]
             if lock.token == token:
                 del self.__locks[object_id]
-                self.__timeouts.pop(object_id, None)
+                timeout = self.__timeouts.pop(object_id, None)
+                if timeout and timeout.active():
+                    timeout.cancel()
                 return True
             return LockInfo(lock)
         return False
@@ -77,9 +83,9 @@ class ColdStarService(Service):
             return LockInfo(self.__locks[object_id])
         t = time.time()
         token = uuid.uuid4().bytes
-        lock = Lock(object_id, t, t + 60, token, locker)
+        lock = Lock(object_id, t, t + self.short_timeout, token, locker)
         self.__locks[object_id] = lock
-        self.__timeouts[object_id] = reactor.callLater(60, self.release_lock, object_id, token)
+        self.__timeouts[object_id] = reactor.callLater(self.short_timeout, self.release_lock, object_id, token)
         return lock
 
     def prolong_tmp_lock(self, object_id, token):
@@ -87,10 +93,39 @@ class ColdStarService(Service):
             lock = self.__locks[object_id]
             timeout = self.__timeouts[object_id]
             if lock.token == token:
-                lock.expiration_time = time.time() + 60
-                timeout.reset(60)
+                lock.expiration_time = time.time() + self.short_timeout
+                timeout.reset(self.short_timeout)
                 return True
             return LockInfo(lock)
         return False
 
 
+@implementer(ILockSession)
+class ColdStarSession(object):
+    def __init__(self, service):
+        self.service = service
+        self.locks = {}
+        self.locker = None
+
+    def start_session(self, locker):
+        self.locker = locker
+
+    def close_session(self):
+        for object_id, lock in self.locks.iteritems():
+            self.service.release_lock(object_id, lock.token)
+
+    def acquire_lock(self, object_id):
+        if not self.locker:
+            return
+        lock = self.service.acquire_lock(object_id, self.locker)
+        if isinstance(lock, Lock):
+            self.locks[lock.object_id] = lock
+        return lock
+
+    def release_lock(self, object_id):
+        lock = self.locks.pop(object_id)
+        if lock:
+            return self.service.release_lock(object_id, lock.token)
+
+
+registerAdapter(ColdStarSession, ILockService, ILockSession)
