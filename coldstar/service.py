@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import uuid
-from twisted.application.service import Service
+from twisted.application.service import MultiService
 import time
 from twisted.python.components import registerAdapter
 
@@ -50,11 +50,12 @@ class LockInfo(object):
 
 
 @implementer(ILockService, ITmpLockService)
-class ColdStarService(Service):
+class ColdStarService(MultiService):
     short_timeout = 60
     long_timeout = 3600
 
     def __init__(self):
+        MultiService.__init__(self)
         self.__locks = {}
         self.__timeouts = {}
 
