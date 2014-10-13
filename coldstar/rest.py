@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import datetime
 from klein import Klein
 import json
 from twisted.internet import defer
@@ -14,6 +15,8 @@ __created__ = '05.10.2014'
 
 class RestJsonEncoder(json.JSONEncoder):
     def default(self, o):
+        if isinstance(o, (datetime.datetime, datetime.date)):
+            return o.isoformat()
         if hasattr(o, '__json__'):
             return o.__json__()
         if hasattr(o, '__unicode__'):
