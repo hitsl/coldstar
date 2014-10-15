@@ -14,117 +14,118 @@ class TestPageResource(Resource):
         <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular.min.js"></script>
         <script>
             ColdStar = angular.module('ColdStar',[])
-            .factory('$WebSocket', ['$rootScope', '$timeout', function ($rootScope, $timeout) {
-                var Socket = function (address) {
+            .factory('ColdStarWS', ['$timeout', '$q', function ($timeout, $q) {
+                return function (address, locker) {
+                    var reconnect_timeout = null,
+                        expect_disconnect = false,
+                        queue = [],
+                        ws = null,
+                        promises = {};
                     this.address = address;
-                    this._reconnect = null;
-                    this.ws = null;
+                    this.locker = locker;
                     this.timeout = 5000;
-                    this.expect_disconnect = false;
-                    this.queue = [];
-                };
-                Socket.prototype.connect = function () {
-                    this.expect_disconnect = false;
-                    var t;
-                    if (arguments.length > 0) {
-                        t = arguments[0];
-                    } else {
-                        t = this
+
+                    // Session Layer
+                    this.connect = function () {
+                        expect_disconnect = false;
+                        var self = this;
+                        ws = new WebSocket(this.address);
+                        ws.onopen = function (event) {
+                            if (reconnect_timeout) {
+                                $timeout.cancel(reconnect_timeout);
+                                reconnect_timeout = null;
+                            }
+                            send_command('locker', {
+                                locker: self.locker
+                            });
+                            for (var i=0; i < queue.length; i++) {
+                                ws.send(JSON.stringify(queue[i]));
+                            }
+                            queue = [];
+                        };
+                        ws.onclose = function (event) {
+                            Object.getOwnPropertyNames(promises).forEach(function(magic) {
+                                var promise = promises[magic];
+                                if (promise) {
+                                    promise.reject({
+                                        exception: 'Disconnect',
+                                        message: 'Disconnected'
+                                    })
+                                }
+                            });
+                            promises = {};
+                            if (!expect_disconnect) {
+                                reconnect_timeout = $timeout(function () {
+                                    self.connect.call(self);
+                                }, self.timeout);
+                                ws = null;
+                            }
+                        };
+                        ws.onerror = function (event) {
+                            ws.close();
+                        };
+                        ws.onmessage = function (event) {
+                            var data = JSON.parse(event.data);
+                            if (data.hasOwnProperty('magic')) {
+                                var promise = promises[data.magic];
+                                if (promise) {
+                                    if (data.hasOwnProperty('exception')) {
+                                        promise.reject(data.exception)
+                                    } else {
+                                        promise.resolve(data.result)
+                                    }
+                                    promises[data.magic] = undefined;
+                                }
+                            }
+                        };
+                    };
+                    this.disconnect = function () {
+                        expect_disconnect = true;
+                        if (reconnect_timeout) {
+                            $timeout.cancel(reconnect_timeout);
+                        } else if (ws) {
+                            ws.close();
+                        }
+                    };
+                    var send_command = function(command, params) {
+                        if (!ws) return;
+                        var defer = $q.defer(),
+                            magic = String(Math.floor(Math.random() * Math.pow(2, 16)));
+                        promises[magic] = defer;
+                        ws.send(JSON.stringify({
+                            command: command,
+                            params: params,
+                            magic: magic
+                        }));
+                        return defer.promise;
                     }
-                    var ws = new WebSocket(this.address);
-                    ws.onopen = function (event) {
-                        if (t._reconnect) {
-                            $timeout.cancel(t._reconnect);
-                            t._reconnect = null;
-                        }
-                        t.ws = ws;
-                        if (t._on_open_callback) {
-                            t._on_open_callback();
-                        }
-                        var i;
-                        for (i=0; i < t.queue.length; i++) {
-                            t.ws.send(JSON.stringify(t.queue[i]));
-                        }
-                        t.queue = [];
+
+                    // Application Layer
+                    this.acquire_lock = function(object_id) {
+                        return send_command('acquire_lock', {object_id: object_id});
                     };
-                    ws.onclose = function (event) {
-                        if (t._on_disconnect_callback) {
-                            $rootScope.$apply(t._on_disconnect_callback)
-                        }
-                        if (!t.expect_disconnect) {
-                            t._reconnect = $timeout(function () {
-                                t.connect(t);
-                            }, t.timeout);
-                            t.ws = null;
-                        }
-                    };
-                    ws.onerror = function (event) {
-                        ws.close();
-                    };
-                    ws.onmessage = function (event) {
-                        if (t._on_message_callback) {
-                            $rootScope.$apply(function () {
-                                t._on_message_callback(JSON.parse(event.data))
-                            })
-                        }
+                    this.release_lock = function(object_id) {
+                        return send_command('release_lock', {object_id: object_id});
                     };
                 };
-                Socket.prototype.send = function (object) {
-                    if (this.ws) {
-                        this.ws.send(JSON.stringify(object));
-                    } else {
-                        this.queue.push(object);
-                    }
-                };
-                Socket.prototype.disconnect = function () {
-                    this.expect_disconnect = true;
-                    if (this._reconnect) {
-                        clearInterval(this._reconnect);
-                    } else {
-                        this.ws.close();
-                    }
-                };
-                Socket.prototype.onMessage = function (f) {
-                    this._on_message_callback = f;
-                };
-                Socket.prototype.onOpen = function (f) {
-                    this._on_open_callback = f;
-                };
-                Socket.prototype.onDisconnect = function (f) {
-                    this._on_disconnect_callback = f;
-                };
-                return Socket;
             }]);
-            ColdStarCtrl = function($scope, $WebSocket) {
+            ColdStarCtrl = function($scope, ColdStarWS) {
                 $scope.messages = [];
                 $scope.tokens = {};
-                var myWS = new $WebSocket('ws://' + location.host + '/ws/');
-                myWS.onMessage(function(message) {
-                    console.log('Message received: ' + message);
-                    $scope.messages.push(message);
-                    if (Object.hasOwnProperty(message, 'token')) {
-                        $scope.tokens[message.object_id] = message.token;
-                    }
-                });
-                myWS.onOpen(function() {
-                    console.log('Connected to WS');
-                    myWS.send({
-                        command: 'locker',
-                        locker: 'test'
-                    });
-                });
+                var myWS = new ColdStarWS('ws://' + location.host + '/ws/', 'test!12');
                 myWS.connect();
                 $scope.ws_acquire = function() {
-                    myWS.send({
-                        command: 'acquire_lock',
-                        object_id: 'test_01'
+                    myWS.acquire_lock('test_01').then(function(result) {
+                        $scope.messages.push(result);
+                    }, function(exception) {
+                        $scope.messages.push(exception);
                     })
                 };
                 $scope.ws_release = function() {
-                    myWS.send({
-                        command: 'release_lock',
-                        object_id: 'test_01',
-                        token: $scope.tokens['test_01']
+                    myWS.release_lock('test_01').then(function(result) {
+                        $scope.messages.push(result);
+                    }, function(exception) {
+                        $scope.messages.push(exception);
                     })
                 }
             }

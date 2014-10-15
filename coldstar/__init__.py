@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from autobahn.twisted.resource import WebSocketResource
-from twisted.application import internet
-from twisted.web.resource import IResource, Resource
-from twisted.web.server import Site
-
-from coldstar.rest import IRestService
-from coldstar.service import ColdStarService
-from coldstar.test_page import TestPageResource
-from coldstar.ws import IWsLockFactory
-
-
 __author__ = 'viruzzz-kun'
 __created__ = '13.09.2014'
 
 
 def makeService(config):
+    from autobahn.twisted.resource import WebSocketResource
+    from twisted.application import internet
+    from twisted.web.resource import IResource, Resource
+    from twisted.web.server import Site
+    from coldstar.interfaces import IRestService, IWsLockFactory
+
+    from coldstar.service import ColdStarService
+    from coldstar.test_page import TestPageResource
+
+    from coldstar import rest, ws, session
+
     cold_star = ColdStarService()
     cold_star.short_timeout = int(config.get('tmp-lock-timeout', 60))
     cold_star.long_timeout = int(config.get('lock-timeout', 3600))

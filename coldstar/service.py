@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import uuid
-from twisted.application.service import MultiService
 import time
-from twisted.python.components import registerAdapter
 
+from twisted.application.service import MultiService
 from zope.interface import implementer
-from coldstar.interfaces import ILockService, ITmpLockService, ILockSession
+from coldstar.excs import LockNotFound
+
+from coldstar.interfaces import ILockService, ITmpLockService
 
 
 __author__ = 'viruzzz-kun'
@@ -49,6 +50,18 @@ class LockInfo(object):
         }
 
 
+class LockReleased(object):
+    __slots__ = ['object_id']
+
+    def __init__(self, lock):
+        self.object_id = lock.object_id
+
+    def __json__(self):
+        return {
+            'object_id': self.object_id
+        }
+
+
 @implementer(ILockService, ITmpLockService)
 class ColdStarService(MultiService):
     short_timeout = 60
@@ -74,9 +87,9 @@ class ColdStarService(MultiService):
                 timeout = self.__timeouts.pop(object_id, None)
                 if timeout and timeout.active():
                     timeout.cancel()
-                return True
-            return LockInfo(lock)
-        return False
+                return LockReleased(lock)
+            return LockNotFound(object_id)
+        raise LockNotFound(object_id)
 
     def acquire_tmp_lock(self, object_id, locker):
         from twisted.internet import reactor
@@ -96,38 +109,6 @@ class ColdStarService(MultiService):
             if lock.token == token:
                 lock.expiration_time = time.time() + self.short_timeout
                 timeout.reset(self.short_timeout)
-                return True
+                return lock
             return LockInfo(lock)
-        return False
-
-
-@implementer(ILockSession)
-class ColdStarSession(object):
-    def __init__(self, service):
-        self.service = service
-        self.locks = {}
-        self.locker = None
-
-    def start_session(self, locker):
-        self.locker = locker
-
-    def close_session(self):
-        for object_id, lock in self.locks.iteritems():
-            self.service.release_lock(object_id, lock.token)
-
-    def acquire_lock(self, object_id):
-        if not self.locker:
-            return
-        lock = self.service.acquire_lock(object_id, self.locker)
-        if isinstance(lock, Lock):
-            self.locks[lock.object_id] = lock
-        return lock
-
-    def release_lock(self, object_id):
-        lock = self.locks.pop(object_id, None)
-        if lock:
-            return self.service.release_lock(object_id, lock.token)
-        return False
-
-
-registerAdapter(ColdStarSession, ILockService, ILockSession)
+        raise LockNotFound(object_id)

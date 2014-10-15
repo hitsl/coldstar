@@ -1,31 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import logging
-from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerFactory
 import json
+
+from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerFactory
 from twisted.python.components import registerAdapter
-from zope.interface import Interface, implementer
-from coldstar.interfaces import ILockService, ILockSession
+from zope.interface import implementer
+
+from coldstar.excs import MethodNotFoundException, SerializableBaseException, ExceptionWrapper, BadRequest
+from coldstar.interfaces import ILockService, ILockSession, ISessionLockProtocol, IWsLockFactory
 from coldstar.utils import as_json
 
 __author__ = 'viruzzz-kun'
 __created__ = '05.10.2014'
 
 
-class IWsLockFactory(Interface):
-    def register(self, client):
-        pass
-
-    def unregister(self, client):
-        pass
-
-    def acquire_lock(self, object_id, locker):
-        pass
-
-    def release_lock(self, object_id, token):
-        pass
+logging.getLogger().setLevel(logging.DEBUG)
 
 
+@implementer(ISessionLockProtocol)
 class WsLockProtocol(WebSocketServerProtocol):
     session = None
 
@@ -40,31 +33,49 @@ class WsLockProtocol(WebSocketServerProtocol):
 
     def onMessage(self, payload, isBinary):
         WebSocketServerProtocol.onMessage(self, payload, isBinary)
-        self.onMessageReceived(json.loads(payload))
+        msg = json.loads(payload)
+        logging.info('message: %s', msg)
+        try:
+            result = self.onMessageReceived(msg)
+        except SerializableBaseException, e:
+            self.sendMessage(as_json({
+                'magic': msg.get('magic', 'magic'),
+                'exception': e,
+            }))
+        except Exception, e:
+            self.sendMessage(as_json({
+                'magic': msg.get('magic', 'magic'),
+                'exception': ExceptionWrapper(e),
+            }))
+        else:
+            self.sendMessage(as_json({
+                'result': result,
+                'magic': msg.get('magic', 'magic')
+            }))
 
     def onMessageReceived(self, msg):
-        command = msg['command']
-
-        if not self.session.locker:
-            if command == 'locker':
-                self.session.start_session(msg['locker'])
-                self.sendMessageJson(True)
-            else:
-                self.sendMessageJson(False)
-        else:
-            if command == 'acquire_lock':
-                result = self.session.acquire_lock(msg['object_id'])
-                self.sendMessageJson(result)
-
-            elif command == 'release_lock':
-                result = self.session.release_lock(msg['object_id'])
-                self.sendMessageJson(result)
-
-            else:
-                self.sendMessageJson(False)
+        command = msg.get('command', None)
+        params = msg.get('params', None)
+        if not isinstance(command, (str, unicode)):
+            raise BadRequest
+        method = getattr(self, 'command_' + command, None)
+        if method is None:
+            raise MethodNotFoundException(command)
+        return method(params)
 
     def sendMessageJson(self, obj):
         self.sendMessage(as_json(obj))
+
+    # ISessionLockProtocol interface
+
+    def command_locker(self, params):
+        return self.session.start_session(params['locker'])
+
+    def command_acquire_lock(self, params):
+        return self.session.acquire_lock(params['object_id'])
+
+    def command_release_lock(self, params):
+        return self.session.release_lock(params['object_id'])
 
 
 @implementer(IWsLockFactory)
@@ -99,12 +110,6 @@ class WsLockFactory(WebSocketServerFactory):
         if client in self.clients:
             self.clients.remove(client)
             logging.info('Client %s disconnected', client.peer)
-
-    def acquire_lock(self, object_id, locker):
-        return self.service.acquire_lock(object_id, locker)
-
-    def release_lock(self, object_id, token):
-        return self.service.release_lock(object_id, token)
 
     def buildProtocol(self, addr):
         protocol = self.protocol()

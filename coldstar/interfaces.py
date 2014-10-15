@@ -22,6 +22,7 @@ class ILockService(Interface):
         :param object_id: Object identifier
         :param token: associated lock identifier
         :return:
+        :raise: LockNotFound
         """
 
 
@@ -40,6 +41,7 @@ class ITmpLockService(Interface):
         :param object_id: Object identifier
         :param token: Lock identifier
         :return:
+        :raise: LockNotFound
         """
 
     def release_lock(self, object_id, token):
@@ -48,6 +50,7 @@ class ITmpLockService(Interface):
         :param object_id: Object identifier
         :param token: associated lock identifier
         :return:
+        :raise: LockNotFound
         """
 
 
@@ -58,6 +61,9 @@ class ILockSession(Interface):
     def start_session(self, locker):
         """
         Provide information for session
+        :type locker: dict
+        :param locker: information about Locker
+        :return None
         """
 
     def close_session(self):
@@ -78,3 +84,33 @@ class ILockSession(Interface):
         :param object_id:
         :return:
         """
+
+
+class IRestService(Interface):
+    def acquire_tmp_lock(self, object_id, locker):
+        pass
+
+    def prolong_tmp_lock(self, object_id, token):
+        pass
+
+    def release_lock(self, object_id, token):
+        pass
+
+
+class IWsLockFactory(Interface):
+    def register(self, client):
+        pass
+
+    def unregister(self, client):
+        pass
+
+
+class ISessionLockProtocol(Interface):
+    def command_acquire_lock(self, params):
+        pass
+
+    def command_release_lock(self, params):
+        pass
+
+    def command_locker(self, params):
+        pass
