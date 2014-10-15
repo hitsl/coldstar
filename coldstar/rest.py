@@ -1,33 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import datetime
+
 from klein import Klein
-import json
-from twisted.internet import defer
 from twisted.python.components import registerAdapter
 from twisted.web.resource import IResource
 from zope.interface import Interface, implementer
+
 from coldstar.interfaces import ITmpLockService
+from coldstar.utils import as_json
+
 
 __author__ = 'viruzzz-kun'
 __created__ = '05.10.2014'
-
-
-class RestJsonEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, (datetime.datetime, datetime.date)):
-            return o.isoformat()
-        if hasattr(o, '__json__'):
-            return o.__json__()
-        if hasattr(o, '__unicode__'):
-            return o.__unicode__()
-        if hasattr(o, '__dict__'):
-            return o.__dict__
-        return o
-
-
-def as_json(o):
-    return json.dumps(o, ensure_ascii=False, cls=RestJsonEncoder, encoding='utf-8')
 
 
 class IRestService(Interface):
@@ -72,21 +56,14 @@ class RestService(object):
 
     @app.route('/release_lock/<object_id>')
     def release_lock(self, request, object_id):
-        token = request.args.get('token', None)
-        if token is None:
-            return 'blah'
-        result = self.service.release_lock(object_id, token.decode('hex'))
+        try:
+            token = request.args.get('token', None).decode('hex')
+        except TypeError:
+            return as_json(None)
+        except ValueError:
+            return as_json(None)
+        result = self.service.release_lock(object_id, token)
         return as_json(result)
-
-    @app.route('/test')
-    @defer.inlineCallbacks
-    def test(self, request):
-        from twisted.internet import reactor
-        d = defer.Deferred()
-        reactor.callLater(3, lambda: d.callback('Nyan'))
-        result = yield d
-        print(result)
-        defer.returnValue(result)
 
 
 registerAdapter(RestService, ITmpLockService, IRestService)

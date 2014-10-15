@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import logging
 from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerFactory
 import json
 from twisted.python.components import registerAdapter
 from zope.interface import Interface, implementer
 from coldstar.interfaces import ILockService, ILockSession
+from coldstar.utils import as_json
 
 __author__ = 'viruzzz-kun'
 __created__ = '05.10.2014'
@@ -33,7 +35,7 @@ class WsLockProtocol(WebSocketServerProtocol):
     def onClose(self, wasClean, code, reason):
         WebSocketServerProtocol.onClose(self, wasClean, code, reason)
         if self.session:
-            self.session.close()
+            self.session.close_session()
         self.factory.unregister(self)
 
     def onMessage(self, payload, isBinary):
@@ -51,8 +53,8 @@ class WsLockProtocol(WebSocketServerProtocol):
                 self.sendMessageJson(False)
         else:
             if command == 'acquire_lock':
-                token = self.session.acquire_lock(msg['object_id'])
-                self.sendMessageJson(token)
+                result = self.session.acquire_lock(msg['object_id'])
+                self.sendMessageJson(result)
 
             elif command == 'release_lock':
                 result = self.session.release_lock(msg['object_id'])
@@ -62,7 +64,7 @@ class WsLockProtocol(WebSocketServerProtocol):
                 self.sendMessageJson(False)
 
     def sendMessageJson(self, obj):
-        self.sendMessage(json.dumps(obj))
+        self.sendMessage(as_json(obj))
 
 
 @implementer(IWsLockFactory)
@@ -85,6 +87,7 @@ class WsLockFactory(WebSocketServerFactory):
         :param client:
         :return:
         """
+        logging.info('Connection from %s', client.peer)
         self.clients.append(client)
 
     def unregister(self, client):
@@ -95,6 +98,7 @@ class WsLockFactory(WebSocketServerFactory):
         """
         if client in self.clients:
             self.clients.remove(client)
+            logging.info('Client %s disconnected', client.peer)
 
     def acquire_lock(self, object_id, locker):
         return self.service.acquire_lock(object_id, locker)

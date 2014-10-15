@@ -2,11 +2,14 @@
 # -*- coding: utf-8 -*-
 from autobahn.twisted.resource import WebSocketResource
 from twisted.application import internet
-from twisted.web.resource import IResource
+from twisted.web.resource import IResource, Resource
 from twisted.web.server import Site
+
 from coldstar.rest import IRestService
 from coldstar.service import ColdStarService
+from coldstar.test_page import TestPageResource
 from coldstar.ws import IWsLockFactory
+
 
 __author__ = 'viruzzz-kun'
 __created__ = '13.09.2014'
@@ -20,13 +23,17 @@ def makeService(config):
     rest_service = IRestService(cold_star)
     rest_resource = IResource(rest_service)
 
-    if config.get('web-sockets'):
-        ws_factory = IWsLockFactory(cold_star)
-        ws_resource = WebSocketResource(ws_factory)
-        # noinspection PyArgumentList
-        rest_resource.putChild('ws', ws_resource)
+    ws_factory = IWsLockFactory(cold_star)
+    ws_resource = WebSocketResource(ws_factory)
 
-    site = Site(rest_resource)
+    test_page_resource = TestPageResource()
+
+    root_resource = Resource()
+    root_resource.putChild('lock', rest_resource)
+    root_resource.putChild('ws', ws_resource)
+    root_resource.putChild('test', test_page_resource)
+
+    site = Site(root_resource)
 
     web_service = internet.TCPServer(
         int(config.get('port', 5000)),

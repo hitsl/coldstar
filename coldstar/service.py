@@ -19,7 +19,7 @@ class Lock(object):
     def __init__(self, object_id, acquire_time, expiration_time, token, locker):
         self.object_id = object_id
         self.acquire_time = int(acquire_time)
-        self.expiration_time = int(expiration_time)
+        self.expiration_time = int(expiration_time) if isinstance(expiration_time, float) else expiration_time
         self.token = token
         self.locker = locker
 
@@ -124,9 +124,10 @@ class ColdStarSession(object):
         return lock
 
     def release_lock(self, object_id):
-        lock = self.locks.pop(object_id)
+        lock = self.locks.pop(object_id, None)
         if lock:
             return self.service.release_lock(object_id, lock.token)
+        return False
 
 
 registerAdapter(ColdStarSession, ILockService, ILockSession)
