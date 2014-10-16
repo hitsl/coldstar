@@ -72,43 +72,46 @@ class ColdStarService(MultiService):
         self.__locks = {}
         self.__timeouts = {}
 
-    def acquire_lock(self, object_id, locker):
+    def __acquire_lock(self, object_id, locker, short):
         if object_id in self.__locks:
-            return LockInfo(self.__locks[object_id])
-        lock = Lock(object_id, time.time(), None, uuid.uuid4().bytes, locker)
-        self.__locks[object_id] = lock
+            return LockInfo(self.__locks[object_id][0])
+        t = time.time()
+        token = uuid.uuid4().bytes
+        if short:
+            from twisted.internet import reactor
+            timeout = self.short_timeout if short else None
+            lock = Lock(object_id, t, t + timeout, token, locker)
+            delayed_call = reactor.callLater(timeout, self.release_lock(object_id, token))
+        else:
+            lock = Lock(object_id, t, None, token, locker)
+            delayed_call = None
+        self.__locks[object_id] = (lock, delayed_call)
         return lock
+
+    def acquire_lock(self, object_id, locker):
+        return self.__acquire_lock(object_id, locker, False)
+
+    def acquire_tmp_lock(self, object_id, locker):
+        return self.__acquire_lock(object_id, locker, True)
 
     def release_lock(self, object_id, token):
         if object_id in self.__locks:
-            lock = self.__locks[object_id]
+            lock, delayed_call = self.__locks[object_id]
             if lock.token == token:
                 del self.__locks[object_id]
-                timeout = self.__timeouts.pop(object_id, None)
-                if timeout and timeout.active():
-                    timeout.cancel()
+                if delayed_call and delayed_call.active():
+                    delayed_call.cancel()
                 return LockReleased(lock)
             return LockNotFound(object_id)
         raise LockNotFound(object_id)
 
-    def acquire_tmp_lock(self, object_id, locker):
-        from twisted.internet import reactor
-        if object_id in self.__locks:
-            return LockInfo(self.__locks[object_id])
-        t = time.time()
-        token = uuid.uuid4().bytes
-        lock = Lock(object_id, t, t + self.short_timeout, token, locker)
-        self.__locks[object_id] = lock
-        self.__timeouts[object_id] = reactor.callLater(self.short_timeout, self.release_lock, object_id, token)
-        return lock
-
     def prolong_tmp_lock(self, object_id, token):
-        if object_id in self.__timeouts:
-            lock = self.__locks[object_id]
-            timeout = self.__timeouts[object_id]
+        if object_id in self.__locks:
+            lock, timeout = self.__locks[object_id]
             if lock.token == token:
                 lock.expiration_time = time.time() + self.short_timeout
-                timeout.reset(self.short_timeout)
+                if timeout:
+                    timeout.reset(self.short_timeout)
                 return lock
             return LockInfo(lock)
         raise LockNotFound(object_id)
