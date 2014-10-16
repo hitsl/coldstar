@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import logging
 import uuid
 import time
 
@@ -70,9 +71,9 @@ class ColdStarService(MultiService):
     def __init__(self):
         MultiService.__init__(self)
         self.__locks = {}
-        self.__timeouts = {}
 
     def __acquire_lock(self, object_id, locker, short):
+        logging.info('Acquiring lock %s', object_id)
         if object_id in self.__locks:
             return LockInfo(self.__locks[object_id][0])
         t = time.time()
@@ -81,11 +82,12 @@ class ColdStarService(MultiService):
             from twisted.internet import reactor
             timeout = self.short_timeout if short else None
             lock = Lock(object_id, t, t + timeout, token, locker)
-            delayed_call = reactor.callLater(timeout, self.release_lock(object_id, token))
+            delayed_call = reactor.callLater(timeout, self.release_lock, object_id, token)
         else:
             lock = Lock(object_id, t, None, token, locker)
             delayed_call = None
         self.__locks[object_id] = (lock, delayed_call)
+        logging.info('Lock acquired')
         return lock
 
     def acquire_lock(self, object_id, locker):

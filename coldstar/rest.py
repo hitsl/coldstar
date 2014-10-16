@@ -31,46 +31,31 @@ class RestService(object):
     def index(self, request):
         return 'wtf'
 
-    @app.route('/acquire_tmp_lock/<object_id>')
+    @app.handle_errors(SerializableBaseException)
+    def handle_sbe_exception(self, request, failure):
+        request.setResponseCode(200)
+        return as_json(failure.value)
+
+    @app.handle_errors(Exception)
+    def handle_any_error(self, request, failure):
+        request.setResponseCode(500)
+        return as_json(ExceptionWrapper(failure.value))
+
+    @app.route('/acquire/<object_id>')
     def acquire_tmp_lock(self, request, object_id):
-        try:
-            result = self.service.acquire_tmp_lock(object_id, None)
-        except SerializableBaseException, e:
-            return as_json(e)
-        except Exception, e:
-            return as_json(ExceptionWrapper(e))
-        else:
-            return as_json(result)
+        return as_json(self.service.acquire_tmp_lock(object_id, None))
 
-    @app.route('/prolong_tmp_lock/<object_id>')
+    @app.route('/prolong/<object_id>')
     def prolong_tmp_lock(self, request, object_id):
-        try:
-            token = request.args.get('token', None).decode('hex')
-        except Exception, e:
-            return as_json(ExceptionWrapper(e))
-        try:
-            result = self.service.prolong_tmp_lock(object_id, token)
-        except SerializableBaseException, e:
-            return as_json(e)
-        except Exception, e:
-            return as_json(ExceptionWrapper(e))
-        else:
-            return as_json(result)
+        token = request.args.get('token', None).decode('hex')
+        result = self.service.prolong_tmp_lock(object_id, token)
+        return as_json(result)
 
-    @app.route('/release_lock/<object_id>')
+    @app.route('/release/<object_id>')
     def release_lock(self, request, object_id):
-        try:
-            token = request.args.get('token', None).decode('hex')
-        except Exception, e:
-            return as_json(ExceptionWrapper(e))
-        try:
-            result = self.service.release_lock(object_id, token)
-        except SerializableBaseException, e:
-            return as_json(e)
-        except Exception, e:
-            return as_json(ExceptionWrapper(e))
-        else:
-            return as_json(result)
+        token = request.args.get('token', None).decode('hex')
+        result = self.service.release_lock(object_id, token)
+        return as_json(result)
 
 
 registerAdapter(RestService, ITmpLockService, IRestService)
