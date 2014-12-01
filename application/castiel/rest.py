@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import jinja2
+from twisted.internet import defer
 
 from twisted.python.components import registerAdapter
 from twisted.web.resource import IResource, Resource, getChildForRequest
@@ -10,7 +11,7 @@ from zope.interface import implementer
 
 from application.castiel.interfaces import ICasService
 from application.castiel.service import ERottenToken
-from lib.excs import SerializableBaseException
+from lib.excs import SerializableBaseException, ExceptionWrapper
 from lib.utils import api_method, as_json
 
 
@@ -35,38 +36,41 @@ class CastielWebResource(Resource):
             loader=jinja2.FileSystemLoader(os.path.join(current_dir, 'templates')),
         )
         self.static_resource = File(os.path.join(current_dir, 'static'))
-        # self.putChild('static', self.static_resource)
         self.service = castiel_service
 
+    @defer.inlineCallbacks  # This is custom Twisted feature
     def render_GET(self, request):
         ppl = len(request.postpath)
         if ppl == 0 or ppl == 1 and not request.postpath[0]:
-            return 'I am Castiel, angel of God'
+            defer.returnValue('I am Castiel, angel of God')
 
         if ppl >= 1 and request.postpath[0] == 'static':
                 request.prepath.append(request.postpath.pop(0))
-                return getChildForRequest(self.static_resource, request).render(request)
+                defer.returnValue(getChildForRequest(self.static_resource, request).render(request))
 
         elif ppl == 1:
             if request.postpath[0] == 'acquire':
-                return self.acquire_token(request)
+                result = yield self.acquire_token(request)
+                defer.returnValue(result)
 
             elif request.postpath[0] == 'login':
                 if request.method == 'GET':
-                    return self.login_form(request)
+                    defer.returnValue(self.login_form(request))
 
                 elif request.method == 'POST':
-                    return self.acquire_token(request)
+                    result = yield self.acquire_token(request)
+                    defer.returnValue(result)
 
             elif request.postpath[0] == 'release':
-                return self.release_token(request)
+                defer.returnValue(self.release_token(request))
 
             elif request.postpath[0] == 'check':
-                return self.check_token(request)
+                defer.returnValue(self.check_token(request))
 
         request.setResponseCode(404)
-        return '404 Not Found'
+        defer.returnValue('404 Not Found')
 
+    @defer.inlineCallbacks
     def acquire_token(self, request):
         """
         Acquire auth token for login / password pair
@@ -74,14 +78,20 @@ class CastielWebResource(Resource):
         :return:
         """
         back = request.args.get('back', None)
-        login = request.args['login'][0]
-        password = request.args['password'][0]
-        token = self.service.acquire_token(login, password)
-        token_txt = token.encode('hex')
-        request.addCookie(self.cookie_name, token_txt)
-        if back:
-            return Redirect(back[0])
-        return as_json(token_txt)
+        login = request.args['login'][0].decode('utf-8')
+        password = request.args['password'][0].decode('utf-8')
+        try:
+            token = yield self.service.acquire_token(login, password)
+        except SerializableBaseException as e:
+            defer.returnValue(as_json(e))
+        except Exception as e:
+            defer.returnValue(as_json(ExceptionWrapper(e)))
+        else:
+            token_txt = token.encode('hex')
+            request.addCookie(self.cookie_name, token_txt)
+            if back:
+                defer.returnValue(Redirect(back[0]))
+            defer.returnValue(as_json(token_txt))
 
     @api_method
     def release_token(self, request):

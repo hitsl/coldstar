@@ -19,6 +19,7 @@ class Options(usage.Options):
         ['interface', 'i', '0.0.0.0', 'Interface to bind to'],
         ['tmp-lock-timeout', None, 60, 'Timeout for temporary locks'],
         ['lock-timeout', None, 3600, 'Timeout for permanent locks'],
+        ['db-url', None, 'mysql+cymysql://127.0.0.1/hospital']
     ]
 
     optFlags = [['web-sockets', 'w', 'Use WebSockets']]

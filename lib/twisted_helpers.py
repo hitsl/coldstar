@@ -6,22 +6,22 @@ __author__ = 'mmalkov'
 
 
 def deferred_to_thread(func):
-    from twisted.internet import reactor
+    from twisted.internet.threads import deferToThread
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        return reactor.deferToThread(func, *args, **kwargs)
+        return deferToThread(func, *args, **kwargs)
 
     return wrapper
 
 
 def run_in_thread(func):
-    from twisted.internet import reactor
+    from twisted.internet.threads import deferToThread
 
     @wraps(func)
     @defer.inlineCallbacks
     def wrapper(*args, **kwargs):
-        result = yield reactor.deferToThread(func, *args, **kwargs)
+        result = yield deferToThread(func, *args, **kwargs)
         defer.returnValue(result)
 
     return wrapper

@@ -3,7 +3,9 @@ import os
 import time
 
 from twisted.application.service import Service
+from twisted.internet import defer
 from twisted.internet.task import LoopingCall
+from hashlib import md5
 from zope.interface import implementer
 
 from application.castiel.interfaces import ICasService
@@ -19,24 +21,48 @@ class ERottenToken(SerializableBaseException):
         self.message = 'Token %s is expired' % token.encode('hex')
 
 
+class ETokenAlreadyAcquired(SerializableBaseException):
+    def __init__(self, user_id):
+        self.message = 'Token for user id = %s already taken' % user_id
+
+
+class EInvalidCredentials(SerializableBaseException):
+    def __init__(self):
+        self.message = 'Incorrect login or password'
+
+
 @implementer(ICasService)
 class CastielService(Service):
     rot_time = 3600
     clean_period = 10
+    db_service = None
 
     def __init__(self):
         self.tokens = {}
         self.rot_cleaner = LoopingCall(self._clean_rotten)
 
+    @defer.inlineCallbacks
     def acquire_token(self, login, password):
-        # TODO: ask database
+        from twisted.internet.threads import deferToThread
+        from .models import Person
 
-        user_id = os.urandom(4)
-        token = os.urandom(16)
+        def get_user_id():
+            with self.db_service.context_session(True) as session:
+                result = session.query(Person).filter(Person.login == login, Person.password == md5(password).hexdigest()).first()
+                if result:
+                    return result.id
+                raise EInvalidCredentials
+
+        user_id = yield deferToThread(get_user_id)
 
         ctime = time.time()
+        if any((age > ctime and user_id == uid) for token, (age, uid) in self.tokens.iteritems()):
+            raise ETokenAlreadyAcquired(user_id)
+
+        token = os.urandom(16)
+
         self.tokens[token] = (ctime + self.rot_time, user_id)
-        return token
+        defer.returnValue(token)
 
     def release_token(self, token):
         if token in self.tokens:
@@ -59,7 +85,7 @@ class CastielService(Service):
     def _clean_rotten(self):
         now = time.time()
         for token, (t, _) in self.tokens.items():
-            if t > now:
+            if t < now:
                 del self.tokens[token]
 
     def startService(self):

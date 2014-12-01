@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-from zope.interface import Interface
+from zope.interface import Interface, Attribute
 
 __author__ = 'mmalkov'
 
 
 class ICasService(Interface):
+    db_service = Attribute('db_service', 'Database service')
+
     def acquire_token(self, login, password):
         """
         Acquire auth token for login / password pair
