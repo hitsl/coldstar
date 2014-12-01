@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 from twisted.python.components import registerAdapter
 from zope.interface import implementer
-from coldstar.excs import LockNotFound, LockerNotSet
-from coldstar.interfaces import ILockSession, ILockService
-from coldstar.service import Lock
+
+from .excs import LockNotFound, LockerNotSet
+from .interfaces import ILockSession, ILockService
+from .service import Lock
+
 
 __author__ = 'viruzzz-kun'
 __created__ = '15.10.2014'

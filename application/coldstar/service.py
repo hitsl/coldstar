@@ -4,11 +4,11 @@ import logging
 import uuid
 import time
 
-from twisted.application.service import MultiService
+from twisted.application.service import Service
 from zope.interface import implementer
-from coldstar.excs import LockNotFound
 
-from coldstar.interfaces import ILockService, ITmpLockService
+from .excs import LockNotFound
+from .interfaces import ILockService, ITmpLockService
 
 
 __author__ = 'viruzzz-kun'
@@ -64,12 +64,11 @@ class LockReleased(object):
 
 
 @implementer(ILockService, ITmpLockService)
-class ColdStarService(MultiService):
+class ColdStarService(Service):
     short_timeout = 60
     long_timeout = 3600
 
     def __init__(self):
-        MultiService.__init__(self)
         self.__locks = {}
 
     def __acquire_lock(self, object_id, locker, short):

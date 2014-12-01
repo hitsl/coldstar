@@ -7,9 +7,10 @@ from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerF
 from twisted.python.components import registerAdapter
 from zope.interface import implementer
 
-from coldstar.excs import MethodNotFoundException, SerializableBaseException, ExceptionWrapper, BadRequest
-from coldstar.interfaces import ILockService, ILockSession, ISessionLockProtocol, IWsLockFactory
-from coldstar.utils import as_json
+from .excs import MethodNotFoundException, SerializableBaseException, ExceptionWrapper, BadRequest
+from .interfaces import ILockService, ILockSession, ISessionLockProtocol, IWsLockFactory
+from lib.utils import as_json
+
 
 __author__ = 'viruzzz-kun'
 __created__ = '05.10.2014'
