@@ -71,10 +71,14 @@ class CastielService(Service):
         raise ERottenToken(token)
 
     def check_token(self, token, prolong=False):
-        result = token in self.tokens and self.tokens[token][0] > time.time()
-        if result and prolong:
+        if token not in self.tokens:
+            return False
+        deadline, user_id = self.tokens[token]
+        if deadline < time.time():
+            return False
+        if prolong:
             self.prolong_token(token)
-        return result
+        return user_id
 
     def prolong_token(self, token):
         if token not in self.tokens:
