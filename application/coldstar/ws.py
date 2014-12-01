@@ -7,7 +7,7 @@ from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerF
 from twisted.python.components import registerAdapter
 from zope.interface import implementer
 
-from .excs import MethodNotFoundException, SerializableBaseException, ExceptionWrapper, BadRequest
+from lib.excs import MethodNotFoundException, SerializableBaseException, ExceptionWrapper, BadRequest
 from .interfaces import ILockService, ILockSession, ISessionLockProtocol, IWsLockFactory
 from lib.utils import as_json
 

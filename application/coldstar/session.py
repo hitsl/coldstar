@@ -3,7 +3,7 @@
 from twisted.python.components import registerAdapter
 from zope.interface import implementer
 
-from .excs import LockNotFound, LockerNotSet
+from lib.excs import LockNotFound, LockerNotSet
 from .interfaces import ILockSession, ILockService
 from .service import Lock
 

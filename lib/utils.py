@@ -2,7 +2,9 @@
 import datetime
 import json
 import functools
-from application.coldstar.excs import SerializableBaseException, ExceptionWrapper
+
+from lib.excs import SerializableBaseException, ExceptionWrapper
+
 
 __author__ = 'mmalkov'
 

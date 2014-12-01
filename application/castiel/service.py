@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+
 from twisted.application.service import Service
 from twisted.internet.task import LoopingCall
 from zope.interface import implementer
+
 from application.castiel.interfaces import ICasService
-from application.coldstar.excs import SerializableBaseException
+from lib.excs import SerializableBaseException
+
 
 __author__ = 'mmalkov'
 
 
 class ERottenToken(SerializableBaseException):
     def __init__(self, token):
+        self.token = token
         self.message = 'Token %s is expired' % token.encode('hex')
 
 
 @implementer(ICasService)
 class CastielService(Service):
     rot_time = 3600
+    clean_period = 10
 
     def __init__(self):
         self.tokens = {}
@@ -39,8 +44,11 @@ class CastielService(Service):
             return True
         raise ERottenToken(token)
 
-    def check_token(self, token):
-        return token in self.tokens and self.tokens[token][0] > time.time()
+    def check_token(self, token, prolong=False):
+        result = token in self.tokens and self.tokens[token][0] > time.time()
+        if result and prolong:
+            self.prolong_token(token)
+        return result
 
     def prolong_token(self, token):
         if token not in self.tokens:
@@ -56,7 +64,7 @@ class CastielService(Service):
 
     def startService(self):
         Service.startService(self)
-        self.rot_cleaner.start(60)
+        self.rot_cleaner.start(self.clean_period)
 
     def stopService(self):
         Service.stopService(self)
