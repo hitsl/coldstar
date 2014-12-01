@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
 from twisted.python.components import registerAdapter
+from twisted.web.error import UnsupportedMethod
 from twisted.web.resource import IResource, Resource
+from twisted.web.util import Redirect
 from zope.interface import implementer
 from application.castiel.interfaces import ICasService
 from lib.utils import api_method
 
 __author__ = 'mmalkov'
 
-
 @implementer(IResource)
 class CastielWebResource(Resource):
+    isLeaf = True
+    cookie_name = 'CastielAuthToken'
+
     def __init__(self, castiel_service):
         Resource.__init__(self)
         self.service = castiel_service
@@ -19,29 +23,47 @@ class CastielWebResource(Resource):
         if ppl == 0 or ppl == 1 and not request.postpath[0]:
             return 'This is Castiel, angel of God'
         if ppl == 1:
+            token = request.getCookie(self.cookie_name)
+            if token:
+                token = token.decode('hex')
+
             if request.postpath[0] == 'acquire':
-                login = request.args['login'][0]
-                password = request.args['password'][0]
-                return self.acquire_token(login, password)
+                return self.acquire_token(request)
+
             elif request.postpath[0] == 'login':
-                return self.login_form()
-        elif ppl == 2:
-            if request.postpath[0] == 'release':
-                return self.release_token(request.postpath[1].decode('hex'))
+                if request.method == 'GET':
+                    return self.login_form()
+
+                elif request.method == 'POST':
+                    back = request.args.get('back', None)
+                    result = self.acquire_token(request)
+                    if back:
+                        return Redirect(back[0])
+                    return result
+
+            elif request.postpath[0] == 'release':
+                return self.release_token(token.decode('hex'))
+
             elif request.postpath[0] == 'check':
-                return self.check_token(request.postpath[1].decode('hex'))
+                return self.check_token(token.decode('hex'))
+
         request.setResponseCode(404)
         return '404 Not Found'
 
     @api_method
-    def acquire_token(self, login, password):
+    def acquire_token(self, request):
         """
         Acquire auth token for login / password pair
         :param login:
         :param password:
         :return:
         """
-        return self.service.acquire_token(login, password)
+        login = request.args['login'][0]
+        password = request.args['password'][0]
+        token = self.service.acquire_token(login, password)
+        request.addCookie(self.cookie_name, token.encode('hex'), )
+
+        return token.encode('hex')
 
     @api_method
     def release_token(self, token):
@@ -59,6 +81,8 @@ class CastielWebResource(Resource):
         :param token:
         :return:
         """
+        # Implicitly prolong token...
+        self.prolong_token(token)
         return self.service.check_token(token)
 
     @api_method
