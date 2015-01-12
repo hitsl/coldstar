@@ -36,6 +36,7 @@ class CastielService(Service):
     rot_time = 3600
     clean_period = 10
     db_service = None
+    check_duplicate_tokens = False
 
     def __init__(self):
         self.tokens = {}
@@ -56,7 +57,7 @@ class CastielService(Service):
         user_id = yield deferToThread(get_user_id)
 
         ctime = time.time()
-        if any((age > ctime and user_id == uid) for token, (age, uid) in self.tokens.iteritems()):
+        if self.check_duplicate_tokens and any((age > ctime and user_id == uid) for token, (age, uid) in self.tokens.iteritems()):
             raise ETokenAlreadyAcquired(user_id)
 
         token = os.urandom(16)

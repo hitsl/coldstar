@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 import twisted.web.resource
 import twisted.application.service
-# -*- coding: utf-8 -*-
-import contextlib
-import sqlalchemy
-import sqlalchemy.orm
 
 __author__ = 'mmalkov'
 

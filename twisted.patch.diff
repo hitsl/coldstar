@@ -1,0 +1,46 @@
+diff --git a/twisted/web/server.py b/twisted/web/server.py
+index a3ecaa3..b760fb0 100644
+--- a/twisted/web/server.py
++++ b/twisted/web/server.py
+@@ -11,6 +11,8 @@ from __future__ import division, absolute_import
+ 
+ import copy
+ import os
++from twisted.internet import defer
++
+ try:
+     from urllib import quote
+ except ImportError:
+@@ -227,7 +229,7 @@ class Request(Copyable, http.Request, components.Componentized):
+                 http.Request.write(self, data)
+         return http.Request.finish(self)
+ 
+-
++    @defer.inlineCallbacks
+     def render(self, resrc):
+         """
+         Ask a resource to render itself.
+@@ -235,7 +237,7 @@ class Request(Copyable, http.Request, components.Componentized):
+         @param resrc: a L{twisted.web.resource.IResource}.
+         """
+         try:
+-            body = resrc.render(self)
++            body = yield defer.maybeDeferred(resrc.render, self)
+         except UnsupportedMethod as e:
+             allowedMethods = e.allowedMethods
+             if (self.method == b"HEAD") and (b"GET" in allowedMethods):
+@@ -283,7 +285,13 @@ class Request(Copyable, http.Request, components.Componentized):
+                     "I don't know how to treat a %s request." %
+                     (escape(self.method.decode("charmap")),))
+                 body = epage.render(self)
+-        # end except UnsupportedMethod
++        except Exception as e:
++            body = resource.ErrorPage(
++                http.INTERNAL_SERVER_ERROR,
++                "Request failed",
++                "Request: " + html.PRE(reflect.safe_repr(self)) + "<br />" +
++                "Resource: " + html.PRE(reflect.safe_repr(resrc)) + "<br />" +
++                "Value: " + html.PRE(reflect.safe_repr(e))).render(self)
+ 
+         if body == NOT_DONE_YET:
+             return

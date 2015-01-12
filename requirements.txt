@@ -1,4 +1,4 @@
-git+https://github.com/Viruzzz-kun/twisted.git@feature-deferred-renders#egg=twisted
+twisted
 Autobahn
 jinja2
 sqlalchemy

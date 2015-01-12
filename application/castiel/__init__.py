@@ -1,4 +1,4 @@
 # -*- coding: utf-8 -*-
-import rest
+from application.castiel.web import root
 import service
 __author__ = 'mmalkov'

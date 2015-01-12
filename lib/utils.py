@@ -2,6 +2,7 @@
 import datetime
 import json
 import functools
+from twisted.internet import defer
 
 from lib.excs import SerializableBaseException, ExceptionWrapper
 
@@ -28,12 +29,13 @@ def as_json(o):
 
 def api_method(func):
     @functools.wraps(func)
+    @defer.inlineCallbacks
     def wrapper(*args, **kwargs):
         try:
-            result = func(*args, **kwargs)
+            result = yield func(*args, **kwargs)
         except SerializableBaseException as e:
             result = e
         except Exception as e:
             result = ExceptionWrapper(e)
-        return as_json(result)
+        defer.returnValue(as_json(result))
     return wrapper
