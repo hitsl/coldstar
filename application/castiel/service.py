@@ -15,10 +15,10 @@ from lib.excs import SerializableBaseException
 __author__ = 'mmalkov'
 
 
-class ERottenToken(SerializableBaseException):
+class EExpiredToken(SerializableBaseException):
     def __init__(self, token):
         self.token = token
-        self.message = 'Token %s is expired' % token.encode('hex')
+        self.message = 'Token %s is expired or not taken' % token.encode('hex')
 
 
 class ETokenAlreadyAcquired(SerializableBaseException):
@@ -33,14 +33,14 @@ class EInvalidCredentials(SerializableBaseException):
 
 @implementer(ICasService)
 class CastielService(Service):
-    rot_time = 3600
+    expiry_time = 3600
     clean_period = 10
     db_service = None
     check_duplicate_tokens = False
 
     def __init__(self):
         self.tokens = {}
-        self.rot_cleaner = LoopingCall(self._clean_rotten)
+        self.expired_cleaner = LoopingCall(self._clean_expired)
 
     @defer.inlineCallbacks
     def acquire_token(self, login, password):
@@ -62,14 +62,14 @@ class CastielService(Service):
 
         token = os.urandom(16)
 
-        self.tokens[token] = (ctime + self.rot_time, user_id)
+        self.tokens[token] = (ctime + self.expiry_time, user_id)
         defer.returnValue(token)
 
     def release_token(self, token):
         if token in self.tokens:
             del self.tokens[token]
             return True
-        raise ERottenToken(token)
+        raise EExpiredToken(token)
 
     def check_token(self, token, prolong=False):
         if token not in self.tokens:
@@ -83,20 +83,21 @@ class CastielService(Service):
 
     def prolong_token(self, token):
         if token not in self.tokens:
-            raise ERottenToken(token)
-        self.tokens[token] = (time.time() + self.rot_time, self.tokens[token][1])
+            raise EExpiredToken(token)
+        self.tokens[token] = (time.time() + self.expiry_time, self.tokens[token][1])
         return True
 
-    def _clean_rotten(self):
+    def _clean_expired(self):
         now = time.time()
         for token, (t, _) in self.tokens.items():
             if t < now:
+                print "token", token.encode('hex'), "expired"
                 del self.tokens[token]
 
     def startService(self):
         Service.startService(self)
-        self.rot_cleaner.start(self.clean_period)
+        self.expired_cleaner.start(self.clean_period)
 
     def stopService(self):
         Service.stopService(self)
-        self.rot_cleaner.stop()
+        self.expired_cleaner.stop()

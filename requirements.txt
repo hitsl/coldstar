@@ -3,3 +3,4 @@ Autobahn
 jinja2
 sqlalchemy
 cymysql
+itsdangerous

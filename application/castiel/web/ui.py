@@ -9,7 +9,7 @@ from twisted.web.util import redirectTo
 from zope.interface import implementer
 
 from .root import CastielResourceMixin
-from .session import IFlashedMessages
+from .session import ICastielWebSession
 from ..service import EInvalidCredentials, ETokenAlreadyAcquired
 
 
@@ -47,13 +47,19 @@ class CastielUserResource(Resource, CastielResourceMixin):
             return 'deded'
 
         session = request.getSession()
-        fm = IFlashedMessages(session)
+        fm = ICastielWebSession(session)
 
         return dict(
             get_flashed_messages=fm.get_flashed_messages,
             url_for=url_for,
             request=request,
         )
+
+    def render_template(self, name, request, **kwargs):
+        template = self.jinja_env.get_template(name)
+        context = self.get_jinja_context(request)
+        context.update(kwargs)
+        return template.render(context).encode('utf-8')
 
 
 @implementer(IResource)
@@ -69,38 +75,40 @@ class CastielLoginResource(Resource, CastielResourceMixin):
         token = request.getCookie(self.cookie_name)
         if token:
             token = token.decode('hex')
-        back = request.args.get('back', ['/'])[0]
-
+        session = request.getSession()
+        fm = ICastielWebSession(session)
+        back = request.args.get('back', [request.getHeader('Referer') or '/'])[0]
+        if not fm.back:
+            fm.back = back
         if not self.service.check_token(token):
             # Token is invalid - proceed to login form
-            template = self.parent.jinja_env.get_template('login.html')
-            context = self.parent.get_jinja_context(request)
-            return template.render(
-                **context
-            ).encode('utf-8')
+            return self.parent.render_template('login.html', request)
         else:
             # Token is valid - just redirect
+            fm.back = None
             return redirectTo(back, request)
 
     @defer.inlineCallbacks
     def render_POST(self, request):
-        back = request.args.get('back', ['/'])[0]
+        session = request.getSession()
+        fm = ICastielWebSession(session)
+        back = fm.back
         try:
             login = request.args['login'][0].decode('utf-8')
             password = request.args['password'][0].decode('utf-8')
             token = yield self.service.acquire_token(login, password)
         except EInvalidCredentials:
             print 'Invalid credentials'
-            session = request.getSession()
-            fm = IFlashedMessages(session)
             fm.flash_message(dict(
                 text=u"Неверное имя пользователя или пароль",
                 severity='danger'
             ))
             defer.returnValue(redirectTo(request.uri, request))
         except ETokenAlreadyAcquired:
+            fm.back = None
             defer.returnValue(redirectTo(back, request))
         else:
             token_txt = token.encode('hex')
             request.addCookie(self.cookie_name, token_txt)
+            fm.back = None
             defer.returnValue(redirectTo(back, request))
