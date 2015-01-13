@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import twisted.web.resource
+import twisted.web.static
 import twisted.application.service
 
 __author__ = 'mmalkov'
@@ -15,6 +16,12 @@ class RootService(twisted.application.service.MultiService):
         # noinspection PyUnresolvedReferences
 
         self.root_resource = twisted.web.resource.Resource()
+        self.root_resource.putChild('', twisted.web.static.Data(u"""
+<!DOCTYPE html>
+<html>
+<head><style>body {background: #5090F0; color: white}</style></head>
+<body><h1>ColdStar</h1><h2>Подсистема всякой ерунды</h2>Давайте придумаем более человеческое название...</body>
+</html>""".encode('utf-8'), 'text/html; charset=utf-8'))
         self.site = Site(self.root_resource)
 
         self.web_service = internet.TCPServer(
