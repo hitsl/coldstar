@@ -1,3 +1,7 @@
-Twisted
-Klein
+twisted
 Autobahn
+jinja2
+sqlalchemy
+cymysql
+itsdangerous
+pyyaml
