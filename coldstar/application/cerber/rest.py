@@ -5,7 +5,7 @@ from twisted.python.components import registerAdapter
 from twisted.web.resource import IResource, Resource
 from zope.interface import implementer
 
-from lib.utils import api_method
+from coldstar.lib.utils import api_method
 from .interfaces import IRestService
 from .service import ITmpLockService
 

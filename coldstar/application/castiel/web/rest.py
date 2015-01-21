@@ -5,8 +5,8 @@ from twisted.internet import defer
 from twisted.web.resource import IResource, Resource
 from zope.interface import implementer
 
-from .root import CastielResourceMixin
-from lib.utils import api_method
+from coldstar.application.castiel.web.root import CastielResourceMixin
+from coldstar.lib.utils import api_method
 
 
 __author__ = 'mmalkov'

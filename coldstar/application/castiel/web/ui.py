@@ -7,8 +7,8 @@ from twisted.web.resource import IResource, Resource
 from twisted.web.static import File
 from twisted.web.util import redirectTo
 from zope.interface import implementer
-from application.castiel.service import EExpiredToken
 
+from coldstar.application.castiel.service import EExpiredToken
 from .root import CastielResourceMixin
 from .session import ICastielWebSession
 from ..service import EInvalidCredentials, ETokenAlreadyAcquired

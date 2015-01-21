@@ -6,6 +6,7 @@ VIRTUALENV_PATH=$CWD/venv
 
 if [ ! -d "$VIRTUALENV_PATH" ]
 then
+    [ ! -e config.yaml ] && cp config_dist.yaml config.yaml
     echo "Virtualenv not created. trying creating virtualenv..."
     virtualenv venv || (echo "Virtualenv is not installed" && exit -1)
     . $VIRTUALENV_PATH/bin/activate

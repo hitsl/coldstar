@@ -15,14 +15,9 @@ class Options(usage.Options):
     synopsis = "[options]"
     longdesc = "Make a ColdStar server."
     optParameters = [
-        ['port', 'p', 5000, 'Port to listen on for HTTP and WebSocket requests'],
-        ['interface', 'i', '0.0.0.0', 'Interface to bind to'],
-        ['tmp-lock-timeout', None, 60, 'Timeout for temporary locks'],
-        ['lock-timeout', None, 3600, 'Timeout for permanent locks'],
-        ['db-url', None, 'mysql+cymysql://127.0.0.1/hospital']
+        ['config', 'c', 'config.yaml', 'Configuration file'],
     ]
-
-    optFlags = [['web-sockets', 'w', 'Use WebSockets']]
+    optFlags = []
 
 
 @implementer(IServiceMaker, IPlugin)
@@ -32,8 +27,8 @@ class MyServiceMaker(object):
     options = Options
 
     def makeService(self, config):
-        import application.bootstrap
-        return application.bootstrap.RootService(config)
+        import coldstar.application.bootstrap
+        return coldstar.application.bootstrap.RootService(config)
 
 
 

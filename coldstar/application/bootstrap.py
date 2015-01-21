@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
+import yaml
 import twisted.web.resource
 import twisted.web.static
 import twisted.application.service
+
+from coldstar.lib.utils import safe_traverse
+
 
 __author__ = 'mmalkov'
 
@@ -12,6 +16,9 @@ class RootService(twisted.application.service.MultiService):
         from twisted.application import internet
         from twisted.web.resource import Resource
         from twisted.web.server import Site
+
+        with open(config['config'], 'rt') as cfg_file:
+            config = yaml.load(cfg_file)
 
         # noinspection PyUnresolvedReferences
 
@@ -25,35 +32,35 @@ class RootService(twisted.application.service.MultiService):
         self.site = Site(self.root_resource)
 
         self.web_service = internet.TCPServer(
-            int(config.get('port', 5000)),
+            int(safe_traverse(config, 'web', 'port', default=5000)),
             self.site,
-            interface=config.get('interface', '0.0.0.0')
+            interface=safe_traverse(config, 'host', default='0.0.0.0')
         )
         self.web_service.setServiceParent(self)
 
-        self.db_service = self.bootstrap_database(config)
-        self.coldstar_service = self.bootstrap_coldstar(config)
-        self.castiel_service = self.bootstrap_castiel(config)
+        self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
+        self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'modules', 'cerber', default={}))
+        self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'modules', 'castiel', default={}))
 
     def bootstrap_database(self, config):
-        from application.db.service import DataBaseService
+        from coldstar.lib.db.service import DataBaseService
 
-        service = DataBaseService(config.get('db-url', 'mysql+cymysql://tmis:q1w2e3r4t5@127.0.0.1/hospital1'))
+        service = DataBaseService(safe_traverse(config, 'url', default='mysql+cymysql://tmis:q1w2e3r4t5@127.0.0.1/hospital1'))
         service.setServiceParent(self)
 
         return service
 
-    def bootstrap_coldstar(self, config):
+    def bootstrap_cerber(self, config):
         from autobahn.twisted.resource import WebSocketResource
         from twisted.web.resource import IResource
-        from application.coldstar.interfaces import IWsLockFactory
+        from coldstar.application.cerber.interfaces import IWsLockFactory
 
-        from application.coldstar.service import ColdStarService
-        from application.coldstar.test_page import TestPageResource
+        from coldstar.application.cerber.service import ColdStarService
+        from coldstar.application.cerber.test_page import TestPageResource
 
         service = ColdStarService()
-        service.short_timeout = int(config.get('tmp-lock-timeout', 60))
-        service.long_timeout = int(config.get('lock-timeout', 3600))
+        service.short_timeout = int(safe_traverse(config, 'rest_expiry_time', default=60))
+        service.long_timeout = int(safe_traverse(config, 'expiry_time', default=3600))
         service.setServiceParent(self)
 
         rest_resource = IResource(service)
@@ -71,10 +78,13 @@ class RootService(twisted.application.service.MultiService):
 
     def bootstrap_castiel(self, config):
         from twisted.web.resource import IResource
-        from application.castiel.service import CastielService
+        from coldstar.application.castiel.service import CastielService
 
         service = CastielService()
         service.db_service = self.db_service
+        service.expiry_time = int(safe_traverse(config, 'expiry_time', default=3600))
+        service.clean_period = int(safe_traverse(config, 'clean_period', default=10))
+        service.check_duplicate_tokens = safe_traverse(config, 'check_duplicate_tokens', default=False)
         service.setServiceParent(self)
 
         resource = IResource(service)

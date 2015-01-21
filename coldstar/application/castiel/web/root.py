@@ -5,7 +5,7 @@ from twisted.web.static import Data
 from zope.interface import implementer
 
 from ..interfaces import ICasService
-from lib.excs import SerializableBaseException
+from coldstar.lib.excs import SerializableBaseException
 
 
 __author__ = 'viruzzz-kun'
@@ -31,8 +31,8 @@ class CastielResourceMixin:
 class CastielWebResource(Resource, CastielResourceMixin):
     def __init__(self, castiel_service):
         Resource.__init__(self)
-        from application.castiel.web.rest import CastielApiResource
-        from application.castiel.web.ui import CastielUserResource
+        from coldstar.application.castiel.web.rest import CastielApiResource
+        from coldstar.application.castiel.web.ui import CastielUserResource
         self.service = castiel_service
         self.api = CastielApiResource(castiel_service)
         self.user = CastielUserResource(castiel_service)

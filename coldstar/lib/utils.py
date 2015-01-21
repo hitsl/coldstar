@@ -2,9 +2,10 @@
 import datetime
 import json
 import functools
+
 from twisted.internet import defer
 
-from lib.excs import SerializableBaseException, ExceptionWrapper
+from coldstar.lib.excs import SerializableBaseException, ExceptionWrapper
 
 
 __author__ = 'mmalkov'
@@ -39,3 +40,21 @@ def api_method(func):
             result = ExceptionWrapper(e)
         defer.returnValue(as_json(result))
     return wrapper
+
+
+def safe_traverse(obj, *args, **kwargs):
+    """Безопасное копание вглубь dict'а
+    @param obj: точка входя для копания
+    @param *args: ключи, по которым надо проходить
+    @param default=None: возвращаемое значение, если раскопки не удались
+    @rtype: any
+    """
+    default = kwargs.get('default', None)
+    if obj is None:
+        return default
+    if len(args) == 0:
+        raise ValueError(u'len(args) must be > 0')
+    elif len(args) == 1:
+        return obj.get(args[0], default)
+    else:
+        return safe_traverse(obj.get(args[0]), *args[1:], **kwargs)

@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 import contextlib
+
 import sqlalchemy
 import sqlalchemy.orm
 from twisted.application.service import Service
 from zope.interface.declarations import implementer
-from .interfaces import IDataBaseService
+
+from coldstar.lib.db.interfaces import IDataBaseService
+
 
 __author__ = 'mmalkov'
 

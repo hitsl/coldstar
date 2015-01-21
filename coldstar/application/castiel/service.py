@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+from hashlib import md5
 
 from twisted.application.service import Service
 from twisted.internet import defer
 from twisted.internet.task import LoopingCall
-from hashlib import md5
 from zope.interface import implementer
 
-from application.castiel.interfaces import ICasService
-from lib.excs import SerializableBaseException
+from .interfaces import ICasService
+from coldstar.lib.excs import SerializableBaseException
 
 
 __author__ = 'mmalkov'
@@ -45,7 +45,7 @@ class CastielService(Service):
     @defer.inlineCallbacks
     def acquire_token(self, login, password):
         from twisted.internet.threads import deferToThread
-        from .models import Person
+        from coldstar.application.castiel.models import Person
 
         def get_user_id():
             with self.db_service.context_session(True) as session:

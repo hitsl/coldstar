@@ -7,7 +7,7 @@ import time
 from twisted.application.service import Service
 from zope.interface import implementer
 
-from lib.excs import LockNotFound
+from coldstar.lib.excs import LockNotFound
 from .interfaces import ILockService, ITmpLockService
 
 

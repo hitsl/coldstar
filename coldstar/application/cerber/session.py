@@ -3,8 +3,8 @@
 from twisted.python.components import registerAdapter
 from zope.interface import implementer
 
-from lib.excs import LockNotFound, LockerNotSet
-from .interfaces import ILockSession, ILockService
+from coldstar.lib.excs import LockNotFound, LockerNotSet
+from coldstar.application.cerber.interfaces import ILockSession, ILockService
 from .service import Lock
 
 
