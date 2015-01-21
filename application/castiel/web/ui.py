@@ -74,20 +74,23 @@ class CastielLoginResource(Resource, CastielResourceMixin):
 
     def render_GET(self, request):
         token = request.getCookie(self.cookie_name)
-        if token:
-            token = token.decode('hex')
         session = request.getSession()
         fm = ICastielWebSession(session)
-        back = request.args.get('back', [request.getHeader('Referer') or '/'])[0]
-        if not fm.back:
-            fm.back = back
+        if 'back' in request.args:
+            fm.back = request.args['back'][0]
+        elif not fm.back:
+            fm.back = request.getHeader('Referer') or '/'
         try:
-            self.service.check_token(token)
+            if token:
+                token = token.decode('hex')
+                self.service.check_token(token)
+            else:
+                return self.parent.render_template('login.html', request)
         except EExpiredToken:
             return self.parent.render_template('login.html', request)
         else:
             # Token is valid - just redirect
-            fm.back = None
+            back, fm.back = fm.back, None
             return redirectTo(back, request)
 
     @defer.inlineCallbacks
@@ -111,6 +114,6 @@ class CastielLoginResource(Resource, CastielResourceMixin):
             defer.returnValue(redirectTo(back, request))
         else:
             token_txt = token.encode('hex')
-            request.addCookie(self.cookie_name, token_txt)
+            request.addCookie(self.cookie_name, token_txt, path='/', comment='Castiel Auth Cookie')
             fm.back = None
             defer.returnValue(redirectTo(back, request))
