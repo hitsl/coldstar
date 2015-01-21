@@ -45,7 +45,7 @@ class RootService(twisted.application.service.MultiService):
     def bootstrap_database(self, config):
         from coldstar.lib.db.service import DataBaseService
 
-        service = DataBaseService(safe_traverse(config, 'url', default='mysql+cymysql://tmis:q1w2e3r4t5@127.0.0.1/hospital1'))
+        service = DataBaseService(safe_traverse(config, 'url', default='mysql://tmis:q1w2e3r4t5@127.0.0.1/hospital1'))
         service.setServiceParent(self)
 
         return service
