@@ -16,8 +16,8 @@ else
     . $VIRTUALENV_PATH/bin/activate
 fi
 
-echo "Starting Coldstar..."
+# echo "Starting Coldstar..."
 
-PYTHONPATH=$CWD twistd -n coldstar
+# PYTHONPATH=$CWD twistd -n coldstar
 
 deactivate

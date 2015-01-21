@@ -7,6 +7,7 @@ from twisted.web.resource import IResource, Resource
 from twisted.web.static import File
 from twisted.web.util import redirectTo
 from zope.interface import implementer
+from application.castiel.service import EExpiredToken
 
 from .root import CastielResourceMixin
 from .session import ICastielWebSession
@@ -80,8 +81,9 @@ class CastielLoginResource(Resource, CastielResourceMixin):
         back = request.args.get('back', [request.getHeader('Referer') or '/'])[0]
         if not fm.back:
             fm.back = back
-        if not self.service.check_token(token):
-            # Token is invalid - proceed to login form
+        try:
+            self.service.check_token(token)
+        except EExpiredToken:
             return self.parent.render_template('login.html', request)
         else:
             # Token is valid - just redirect
@@ -96,7 +98,7 @@ class CastielLoginResource(Resource, CastielResourceMixin):
         try:
             login = request.args['login'][0].decode('utf-8')
             password = request.args['password'][0].decode('utf-8')
-            token = yield self.service.acquire_token(login, password)
+            token, deadline, user_id = yield self.service.acquire_token(login, password)
         except EInvalidCredentials:
             print 'Invalid credentials'
             fm.flash_message(dict(

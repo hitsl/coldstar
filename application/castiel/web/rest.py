@@ -57,9 +57,12 @@ class CastielApiResource(Resource, CastielResourceMixin):
         j = self._get_args(request)
         login = j['login']
         password = j['password']
-        token = yield self.service.acquire_token(login, password)
+        token, deadline, user_id = yield self.service.acquire_token(login, password)
         defer.returnValue({
+            'success': True,
             'token': token.encode('hex'),
+            'deadline': deadline,
+            'user_id': user_id,
         })
 
     def release_token(self, request):
@@ -70,7 +73,8 @@ class CastielApiResource(Resource, CastielResourceMixin):
         """
         j = self._get_args(request)
         return {
-            'success': self.service.release_token(j['token'].decode('hex'))
+            'success': self.service.release_token(j['token'].decode('hex')),
+            'token': j['token'],
         }
 
     def check_token(self, request):
@@ -81,8 +85,12 @@ class CastielApiResource(Resource, CastielResourceMixin):
         """
         j = self._get_args(request)
         # Implicitly prolong token...
+        user_id, deadline = self.service.check_token(j['token'].decode('hex'), True)
         return {
-            'user_id': self.service.check_token(j['token'].decode('hex'), True)
+            'success': True,
+            'user_id': user_id,
+            'deadline': deadline,
+            'token': j['token'],
         }
 
     def prolong_token(self, request):
@@ -92,11 +100,15 @@ class CastielApiResource(Resource, CastielResourceMixin):
         :return:
         """
         j = self._get_args(request)
+        success, deadline = self.service.prolong_token(j['token'].decode('hex'))
         return {
-            'success': self.service.prolong_token(j['token'].decode('hex'))
+            'success': success,
+            'deadline': deadline,
+            'token': j['token'],
         }
 
-    def _get_args(self, request):
+    @staticmethod
+    def _get_args(request):
         content = request.content
         if content is not None:
             try:

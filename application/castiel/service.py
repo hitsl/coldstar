@@ -40,7 +40,7 @@ class CastielService(Service):
 
     def __init__(self):
         self.tokens = {}
-        self.expired_cleaner = LoopingCall(self._clean_expired)
+        self.expired_cleaner = None
 
     @defer.inlineCallbacks
     def acquire_token(self, login, password):
@@ -62,8 +62,9 @@ class CastielService(Service):
 
         token = os.urandom(16)
 
-        self.tokens[token] = (ctime + self.expiry_time, user_id)
-        defer.returnValue(token)
+        deadline = ctime + self.expiry_time
+        self.tokens[token] = (deadline, user_id)
+        defer.returnValue((token, deadline, user_id))
 
     def release_token(self, token):
         if token in self.tokens:
@@ -73,19 +74,20 @@ class CastielService(Service):
 
     def check_token(self, token, prolong=False):
         if token not in self.tokens:
-            return False
+            raise EExpiredToken(token)
         deadline, user_id = self.tokens[token]
         if deadline < time.time():
-            return False
+            raise EExpiredToken(token)
         if prolong:
             self.prolong_token(token)
-        return user_id
+        return user_id, deadline
 
     def prolong_token(self, token):
         if token not in self.tokens:
             raise EExpiredToken(token)
-        self.tokens[token] = (time.time() + self.expiry_time, self.tokens[token][1])
-        return True
+        deadline = time.time() + self.expiry_time
+        self.tokens[token] = (deadline, self.tokens[token][1])
+        return True, deadline
 
     def _clean_expired(self):
         now = time.time()
@@ -96,6 +98,7 @@ class CastielService(Service):
 
     def startService(self):
         Service.startService(self)
+        self.expired_cleaner = LoopingCall(self._clean_expired)
         self.expired_cleaner.start(self.clean_period)
 
     def stopService(self):

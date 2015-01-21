@@ -8,6 +8,7 @@ __created__ = '15.10.2014'
 class SerializableBaseException(Exception):
     def __json__(self):
         return {
+            'success': False,
             'exception': self.__class__.__name__,
             'message': self.message,
         }
