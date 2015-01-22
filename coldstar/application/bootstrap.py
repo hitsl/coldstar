@@ -10,6 +10,14 @@ from coldstar.lib.utils import safe_traverse
 __author__ = 'mmalkov'
 
 
+root_html = u"""
+<!DOCTYPE html>
+<html>
+<head><style>body {background: #5090F0; color: white}</style></head>
+<body><h1>ColdStar</h1><h2>Подсистема всякой ерунды</h2>Давайте придумаем более человеческое название...</body>
+</html>"""
+
+
 class RootService(twisted.application.service.MultiService):
     def __init__(self, config):
         twisted.application.service.MultiService.__init__(self)
@@ -23,23 +31,18 @@ class RootService(twisted.application.service.MultiService):
         # noinspection PyUnresolvedReferences
 
         self.root_resource = twisted.web.resource.Resource()
-        self.root_resource.putChild('', twisted.web.static.Data(u"""
-<!DOCTYPE html>
-<html>
-<head><style>body {background: #5090F0; color: white}</style></head>
-<body><h1>ColdStar</h1><h2>Подсистема всякой ерунды</h2>Давайте придумаем более человеческое название...</body>
-</html>""".encode('utf-8'), 'text/html; charset=utf-8'))
+        self.root_resource.putChild('', twisted.web.static.Data(root_html.encode('utf-8'), 'text/html; charset=utf-8'))
         self.site = Site(self.root_resource)
 
         self.web_service = internet.TCPServer(
             int(safe_traverse(config, 'web', 'port', default=5000)),
             self.site,
-            interface=safe_traverse(config, 'host', default='0.0.0.0')
+            interface=safe_traverse(config, 'web', 'host', default='0.0.0.0')
         )
         self.web_service.setServiceParent(self)
 
         self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
-        self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'modules', 'cerber', default={}))
+        # self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'modules', 'cerber', default={}))
         self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'modules', 'castiel', default={}))
 
     def bootstrap_database(self, config):
@@ -49,6 +52,15 @@ class RootService(twisted.application.service.MultiService):
         service.setServiceParent(self)
 
         return service
+
+    def bootstrap_pubsub(self, config):
+        from autobahn.twisted.resource import WebSocketResource
+        from coldstar.lib.ws.service import WsRoutingFactory
+
+        ws_factory = WsRoutingFactory()
+        ws_resource = WebSocketResource(ws_factory)
+
+        self.root_resource.putChild('ws', ws_resource)
 
     def bootstrap_cerber(self, config):
         from autobahn.twisted.resource import WebSocketResource
