@@ -97,7 +97,7 @@ class CastielLoginResource(Resource, CastielResourceMixin):
     def render_POST(self, request):
         session = request.getSession()
         fm = ICastielWebSession(session)
-        back = fm.back
+        back = fm.back or request.args.get('back', ['/'])[0]
         try:
             login = request.args['login'][0].decode('utf-8')
             password = request.args['password'][0].decode('utf-8')
