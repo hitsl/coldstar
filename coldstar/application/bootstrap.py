@@ -11,14 +11,25 @@ __author__ = 'mmalkov'
 
 
 class RootService(twisted.application.service.MultiService):
-    def __init__(self, config):
+    def __init__(self, arg_config):
         twisted.application.service.MultiService.__init__(self)
         from twisted.application import internet
         from twisted.web.resource import Resource
         from twisted.web.server import Site
 
-        with open(config['config'], 'rt') as cfg_file:
-            config = yaml.load(cfg_file)
+        config = {}
+
+        try:
+            with open('config_dist.yaml') as cfg_file:
+                config.update(yaml.load(cfg_file))
+        except (IOError, OSError):
+            pass
+
+        try:
+            with open(arg_config['config'], 'rt') as cfg_file:
+                config.update(yaml.load(cfg_file))
+        except (IOError, OSError):
+            print(u'Cannot load config. Using defaults.')
 
         # noinspection PyUnresolvedReferences
 
@@ -34,7 +45,7 @@ class RootService(twisted.application.service.MultiService):
         self.web_service = internet.TCPServer(
             int(safe_traverse(config, 'web', 'port', default=5000)),
             self.site,
-            interface=safe_traverse(config, 'host', default='0.0.0.0')
+            interface=safe_traverse(config, 'host', default='127.0.0.1')
         )
         self.web_service.setServiceParent(self)
 
