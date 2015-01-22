@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
+from sqlalchemy import or_
 from twisted.application.service import Service
 from twisted.internet import defer, threads
 from zope.interface import implementer
+
 from coldstar.application.sage.interfaces import ISettingsService
+
 
 __author__ = 'viruzzz-kun'
 
@@ -34,7 +37,12 @@ class SettingsService(Service):
             with self.db.context_session(True) as session:
                 return dict(
                     (r.path, _safe_int(r.value))
-                    for r in session.query(Settings).filter(Settings.path.startswith(key))
+                    for r in session.query(Settings).filter(
+                        or_(
+                            Settings.path.startswith(key + '.'),
+                            Settings.path == key
+                        )
+                    )
                 )
 
         if subtree:
