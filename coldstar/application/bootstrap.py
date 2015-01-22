@@ -52,12 +52,26 @@ class RootService(twisted.application.service.MultiService):
         self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
         self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'modules', 'cerber', default={}))
         self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'modules', 'castiel', default={}))
+        self.sage_service = self.bootstrap_sage(safe_traverse(config, 'modules', 'sage', default={}))
 
     def bootstrap_database(self, config):
         from coldstar.lib.db.service import DataBaseService
 
         service = DataBaseService(safe_traverse(config, 'url', default='mysql://tmis:q1w2e3r4t5@127.0.0.1/hospital1'))
         service.setServiceParent(self)
+
+        return service
+
+    def bootstrap_sage(self, config):
+        from twisted.web.resource import IResource
+        from coldstar.application.sage.service import SettingsService
+
+        service = SettingsService()
+        service.db = self.db_service
+        self.setServiceParent(self)
+
+        sage_resource = IResource(service)
+        self.root_resource.putChild('sage', sage_resource)
 
         return service
 
