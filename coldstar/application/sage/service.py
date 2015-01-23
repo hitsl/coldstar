@@ -5,9 +5,15 @@ from twisted.internet import defer, threads
 from zope.interface import implementer
 
 from coldstar.application.sage.interfaces import ISettingsService
+from coldstar.lib.excs import SerializableBaseException
 
 
 __author__ = 'viruzzz-kun'
+
+
+class ENodeNotFound(SerializableBaseException):
+    def __init__(self, name):
+        self.message = u'Node "%s" not found' % name
 
 
 def _safe_int(value):
@@ -32,17 +38,16 @@ class SettingsService(Service):
                     return {
                         result.path: _safe_int(result.value)
                     }
+                raise ENodeNotFound(key)
 
         def get_subtree():
             with self.db.context_session(True) as session:
+                nodes = session.query(Settings).filter(or_(Settings.path.startswith(key + '.'), Settings.path == key)).all()
+                if not nodes:
+                    raise ENodeNotFound(key)
                 return dict(
                     (r.path, _safe_int(r.value))
-                    for r in session.query(Settings).filter(
-                        or_(
-                            Settings.path.startswith(key + '.'),
-                            Settings.path == key
-                        )
-                    )
+                    for r in nodes
                 )
 
         if subtree:
@@ -64,11 +69,6 @@ class SettingsService(Service):
                 result.value = value
                 session.add(Settings)
                 session.commit()
-            return {
-                result.path: result.value
-            }
 
-        result = yield threads.deferToThread(make)
-
-        defer.returnValue(result)
+        yield threads.deferToThread(make)
 

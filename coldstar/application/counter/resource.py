@@ -4,7 +4,7 @@ from twisted.web.resource import Resource, IResource
 from zope.interface import implementer
 
 from .interfaces import ICounterService
-from coldstar.lib.excs import BadRequest
+from coldstar.lib.excs import BadRequest, MethodNotFoundException
 from coldstar.lib.utils import api_method
 
 
@@ -33,6 +33,10 @@ class CounterResource(Resource):
                 client_id = None
                 if 'client_id' in request.args:
                     client_id = int(request.args['client_id'][0])
-                return self.service.acquire(counter_id, client_id)
+                return {
+                    'success': True,
+                    'external_id': self.service.acquire(counter_id, client_id),
+                }
+            raise MethodNotFoundException(request.postpath[0])
 
 registerAdapter(CounterResource, ICounterService, IResource)
