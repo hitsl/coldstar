@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from twisted.internet import defer
 from twisted.python.components import registerAdapter
 from twisted.web.resource import Resource, IResource
 from zope.interface import implementer
@@ -21,6 +22,7 @@ class CounterResource(Resource):
         self.service = service
 
     @api_method
+    @defer.inlineCallbacks
     def render(self, request):
         request.setHeader('content-type', 'application/json; charset=utf-8')
         ppl = len(request.postpath)
@@ -33,10 +35,11 @@ class CounterResource(Resource):
                 client_id = None
                 if 'client_id' in request.args:
                     client_id = int(request.args['client_id'][0])
-                return {
+                result = yield self.service.acquire(counter_id, client_id)
+                defer.returnValue({
                     'success': True,
-                    'external_id': self.service.acquire(counter_id, client_id),
-                }
+                    'external_id': result,
+                })
             raise MethodNotFoundException(request.postpath[0])
 
 registerAdapter(CounterResource, ICounterService, IResource)
