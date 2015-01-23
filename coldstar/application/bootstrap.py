@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from twisted.web.resource import IResource
 import yaml
 import twisted.web.resource
 import twisted.web.static
@@ -52,6 +53,7 @@ class RootService(twisted.application.service.MultiService):
         self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
         self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'modules', 'cerber', default={}))
         self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'modules', 'castiel', default={}))
+        self.counter_service = self.bootstrap_counter(safe_traverse(config, 'modules', 'counter', default={}))
 
     def bootstrap_database(self, config):
         from coldstar.lib.db.service import DataBaseService
@@ -60,6 +62,18 @@ class RootService(twisted.application.service.MultiService):
         service.setServiceParent(self)
 
         return service
+
+    def bootstrap_counter(self, config):
+        from coldstar.application.counter import interfaces
+
+        counter_service = interfaces.ICounterService(self.db_service)
+        counter_service.setServiceParent(self)
+
+        counter_resource = IResource(counter_service)
+        self.root_resource.putChild('counter', counter_resource)
+
+        return counter_service
+
 
     def bootstrap_cerber(self, config):
         from autobahn.twisted.resource import WebSocketResource
