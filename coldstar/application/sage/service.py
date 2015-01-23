@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from twisted.python.components import registerAdapter
+from coldstar.lib.db.interfaces import IDataBaseService
 from sqlalchemy import or_
 from twisted.application.service import Service
 from twisted.internet import defer, threads
@@ -25,7 +27,8 @@ def _safe_int(value):
 
 @implementer(ISettingsService)
 class SettingsService(Service):
-    db = None
+    def __init__(self, database_service):
+        self.db = database_service
 
     @defer.inlineCallbacks
     def get_value(self, key, subtree):
@@ -72,3 +75,4 @@ class SettingsService(Service):
 
         yield threads.deferToThread(make)
 
+registerAdapter(SettingsService, IDataBaseService, ISettingsService)

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from twisted.web.resource import IResource
 import yaml
-import twisted.web.resource
 import twisted.web.static
-import twisted.application.service
+
+from twisted.web.resource import IResource, Resource
+from twisted.application.service import MultiService
 
 from coldstar.lib.utils import safe_traverse
 
@@ -11,11 +11,10 @@ from coldstar.lib.utils import safe_traverse
 __author__ = 'mmalkov'
 
 
-class RootService(twisted.application.service.MultiService):
+class RootService(MultiService):
     def __init__(self, arg_config):
-        twisted.application.service.MultiService.__init__(self)
-        from twisted.application import internet
-        from twisted.web.resource import Resource
+        MultiService.__init__(self)
+        from twisted.application.internet import TCPServer
         from twisted.web.server import Site
 
         config = {}
@@ -32,9 +31,7 @@ class RootService(twisted.application.service.MultiService):
         except (IOError, OSError):
             print(u'Cannot load config. Using defaults.')
 
-        # noinspection PyUnresolvedReferences
-
-        self.root_resource = twisted.web.resource.Resource()
+        self.root_resource = Resource()
         self.root_resource.putChild('', twisted.web.static.Data(u"""
 <!DOCTYPE html>
 <html>
@@ -43,7 +40,7 @@ class RootService(twisted.application.service.MultiService):
 </html>""".encode('utf-8'), 'text/html; charset=utf-8'))
         self.site = Site(self.root_resource)
 
-        self.web_service = internet.TCPServer(
+        self.web_service = TCPServer(
             int(safe_traverse(config, 'web', 'port', default=5000)),
             self.site,
             interface=safe_traverse(config, 'host', default='127.0.0.1')
@@ -65,32 +62,29 @@ class RootService(twisted.application.service.MultiService):
         return service
 
     def bootstrap_sage(self, config):
-        from twisted.web.resource import IResource
-        from coldstar.application.sage.service import SettingsService
+        from coldstar.application.sage.interfaces import ISettingsService
 
-        service = SettingsService()
-        service.db = self.db_service
+        service = ISettingsService(self.db_service)
         self.setServiceParent(self)
 
-        sage_resource = IResource(service)
-        self.root_resource.putChild('sage', sage_resource)
+        resource = IResource(service)
+        self.root_resource.putChild('sage', resource)
 
         return service
 
     def bootstrap_counter(self, config):
-        from coldstar.application.counter import interfaces
+        from coldstar.application.counter.interfaces import ICounterService
 
-        counter_service = interfaces.ICounterService(self.db_service)
-        counter_service.setServiceParent(self)
+        service = ICounterService(self.db_service)
+        service.setServiceParent(self)
 
-        counter_resource = IResource(counter_service)
-        self.root_resource.putChild('counter', counter_resource)
+        resource = IResource(service)
+        self.root_resource.putChild('counter', resource)
 
-        return counter_service
+        return service
 
     def bootstrap_cerber(self, config):
         from autobahn.twisted.resource import WebSocketResource
-        from twisted.web.resource import IResource
         from coldstar.application.cerber.interfaces import IWsLockFactory
 
         from coldstar.application.cerber.service import ColdStarService
@@ -115,11 +109,9 @@ class RootService(twisted.application.service.MultiService):
         return service
 
     def bootstrap_castiel(self, config):
-        from twisted.web.resource import IResource
-        from coldstar.application.castiel.service import CastielService
+        from coldstar.application.castiel.interfaces import ICasService
 
-        service = CastielService()
-        service.db_service = self.db_service
+        service = ICasService(self.db_service)
         service.expiry_time = int(safe_traverse(config, 'expiry_time', default=3600))
         service.clean_period = int(safe_traverse(config, 'clean_period', default=10))
         service.check_duplicate_tokens = safe_traverse(config, 'check_duplicate_tokens', default=False)

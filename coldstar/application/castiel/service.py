@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from twisted.python.components import registerAdapter
+from coldstar.lib.db.interfaces import IDataBaseService
 import os
 import time
 from hashlib import md5
@@ -35,10 +37,10 @@ class EInvalidCredentials(SerializableBaseException):
 class CastielService(Service):
     expiry_time = 3600
     clean_period = 10
-    db_service = None
     check_duplicate_tokens = False
 
-    def __init__(self):
+    def __init__(self, database_service):
+        self.db = database_service
         self.tokens = {}
         self.expired_cleaner = None
 
@@ -48,7 +50,7 @@ class CastielService(Service):
         from coldstar.application.castiel.models import Person
 
         def get_user_id():
-            with self.db_service.context_session(True) as session:
+            with self.db.context_session(True) as session:
                 result = session.query(Person).filter(Person.login == login, Person.password == md5(password).hexdigest()).first()
                 if result:
                     return result.id
@@ -104,3 +106,5 @@ class CastielService(Service):
     def stopService(self):
         Service.stopService(self)
         self.expired_cleaner.stop()
+
+registerAdapter(CastielService, IDataBaseService, ICasService)
