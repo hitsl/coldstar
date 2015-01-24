@@ -21,31 +21,30 @@ class CastielApiResource(Resource, CastielResourceMixin):
         self.service = castiel_service
 
     @api_method
-    @defer.inlineCallbacks  # This is custom Twisted feature. See file 'twisted.patch.diff' for details
+    # This is custom Twisted feature. See file 'twisted.patch.diff' for details
     def render(self, request):
         request.setHeader('Content-Type', 'application/json; charset=utf-8')
         request.postpath = filter(None, request.postpath)
         ppl = len(request.postpath)
         if ppl == 0:
-            defer.returnValue('I am Castiel, angel of God')
+            return 'I am Castiel, angel of God'
 
         elif ppl == 1:
             leaf = request.postpath[0]
             if leaf == 'acquire':
-                result = yield self.acquire_token(request)
-                defer.returnValue(result)
+                return self.acquire_token(request)
 
             elif leaf == 'release':
-                defer.returnValue(self.release_token(request))
+                return self.release_token(request)
 
             elif leaf == 'check':
-                defer.returnValue(self.check_token(request))
+                return self.check_token(request)
 
             elif leaf == 'prolong':
-                defer.returnValue(self.prolong_token(request))
+                return self.prolong_token(request)
 
         request.setResponseCode(404)
-        defer.returnValue('404 Not Found')
+        return '404 Not Found'
 
     @defer.inlineCallbacks
     def acquire_token(self, request):
@@ -65,6 +64,7 @@ class CastielApiResource(Resource, CastielResourceMixin):
             'user_id': user_id,
         })
 
+    @defer.inlineCallbacks
     def release_token(self, request):
         """
         Release previously acquired token
@@ -72,11 +72,13 @@ class CastielApiResource(Resource, CastielResourceMixin):
         :return:
         """
         j = self._get_args(request)
+        result = self.service.release_token(j['token'].decode('hex'))
         return {
-            'success': self.service.release_token(j['token'].decode('hex')),
+            'success': result,
             'token': j['token'],
         }
 
+    @defer.inlineCallbacks
     def check_token(self, request):
         """
         Check whether auth token is valid
@@ -85,14 +87,15 @@ class CastielApiResource(Resource, CastielResourceMixin):
         """
         j = self._get_args(request)
         # Implicitly prolong token...
-        user_id, deadline = self.service.check_token(j['token'].decode('hex'), True)
-        return {
+        user_id, deadline = yield self.service.check_token(j['token'].decode('hex'), True)
+        defer.returnValue({
             'success': True,
             'user_id': user_id,
             'deadline': deadline,
             'token': j['token'],
-        }
+        })
 
+    @defer.inlineCallbacks
     def prolong_token(self, request):
         """
         Make token live longer
@@ -100,12 +103,12 @@ class CastielApiResource(Resource, CastielResourceMixin):
         :return:
         """
         j = self._get_args(request)
-        success, deadline = self.service.prolong_token(j['token'].decode('hex'))
-        return {
+        success, deadline = yield self.service.prolong_token(j['token'].decode('hex'))
+        defer.returnValue({
             'success': success,
             'deadline': deadline,
             'token': j['token'],
-        }
+        })
 
     @staticmethod
     def _get_args(request):

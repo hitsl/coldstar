@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from twisted.python.components import registerAdapter
 from coldstar.lib.db.interfaces import IDataBaseService
+from coldstar.lib.utils import must_be_deferred
 import os
 import time
 from hashlib import md5
@@ -68,12 +69,14 @@ class CastielService(Service):
         self.tokens[token] = (deadline, user_id)
         defer.returnValue((token, deadline, user_id))
 
+    @must_be_deferred
     def release_token(self, token):
         if token in self.tokens:
             del self.tokens[token]
-            return True
+            return defer.succeed(True)
         raise EExpiredToken(token)
 
+    @must_be_deferred
     def check_token(self, token, prolong=False):
         if token not in self.tokens:
             raise EExpiredToken(token)
@@ -82,14 +85,15 @@ class CastielService(Service):
             raise EExpiredToken(token)
         if prolong:
             self.prolong_token(token)
-        return user_id, deadline
+        return defer.succeed((user_id, deadline))
 
+    @must_be_deferred
     def prolong_token(self, token):
         if token not in self.tokens:
             raise EExpiredToken(token)
         deadline = time.time() + self.expiry_time
         self.tokens[token] = (deadline, self.tokens[token][1])
-        return True, deadline
+        return defer.succeed((True, deadline))
 
     def _clean_expired(self):
         now = time.time()
