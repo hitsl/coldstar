@@ -1,14 +1,28 @@
 # -*- coding: utf-8 -*-
-import yaml
+from ConfigParser import ConfigParser
 import twisted.web.static
 
 from twisted.web.resource import IResource, Resource
 from twisted.application.service import MultiService
 
-from coldstar.lib.utils import safe_traverse
+from coldstar.lib.utils import safe_traverse, safe_int
 
 
 __author__ = 'mmalkov'
+
+
+def parse_config(fp):
+    cp = ConfigParser()
+    cp.readfp(fp)
+    result = {}
+    for section in cp.sections():
+        if ':' in section:
+            upper, lower = section.split(':', 1)
+            tmp = result[upper] = {}
+            tmp[lower] = dict((k, safe_int(v)) for k, v in cp.items(section))
+        else:
+            result[section] = dict((k, safe_int(v)) for k, v in cp.items(section))
+    return result
 
 
 class RootService(MultiService):
@@ -20,16 +34,17 @@ class RootService(MultiService):
         config = {}
 
         try:
-            with open('config_dist.yaml') as cfg_file:
-                config.update(yaml.load(cfg_file))
+            with open('default.conf') as cfg_file:
+                config.update(parse_config(cfg_file))
         except (IOError, OSError):
             pass
 
-        try:
-            with open(arg_config['config'], 'rt') as cfg_file:
-                config.update(yaml.load(cfg_file))
-        except (IOError, OSError):
-            print(u'Cannot load config. Using defaults.')
+        if arg_config['config']:
+            try:
+                with open(arg_config['config'], 'rt') as cfg_file:
+                    config.update(parse_config(cfg_file))
+            except (IOError, OSError):
+                print(u'Cannot load config. Using defaults.')
 
         self.root_resource = Resource()
         self.root_resource.putChild('', twisted.web.static.Data(u"""
@@ -43,15 +58,15 @@ class RootService(MultiService):
         self.web_service = TCPServer(
             int(safe_traverse(config, 'web', 'port', default=5000)),
             self.site,
-            interface=safe_traverse(config, 'host', default='127.0.0.1')
+            interface=safe_traverse(config, 'web', 'host', default='127.0.0.1')
         )
         self.web_service.setServiceParent(self)
 
         self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
-        self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'modules', 'cerber', default={}))
-        self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'modules', 'castiel', default={}))
-        self.sage_service = self.bootstrap_sage(safe_traverse(config, 'modules', 'sage', default={}))
-        self.counter_service = self.bootstrap_counter(safe_traverse(config, 'modules', 'counter', default={}))
+        self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'module', 'cerber', default={}))
+        self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'module', 'castiel', default={}))
+        self.sage_service = self.bootstrap_sage(safe_traverse(config, 'module', 'sage', default={}))
+        self.counter_service = self.bootstrap_counter(safe_traverse(config, 'module', 'counter', default={}))
 
     def bootstrap_database(self, config):
         from coldstar.lib.db.service import DataBaseService

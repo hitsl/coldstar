@@ -65,3 +65,10 @@ def must_be_deferred(func):
     def wrapper(*args, **kwargs):
         return defer.maybeDeferred(func, *args, **kwargs)
     return wrapper
+
+
+def safe_int(value):
+    try:
+        return int(value)
+    except ValueError:
+        return value

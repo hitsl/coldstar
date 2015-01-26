@@ -1,6 +1,5 @@
 *.py[co]
 *.idea
 venv
-config.yaml
 *.pid
 twisted/plugins/dropin.cache

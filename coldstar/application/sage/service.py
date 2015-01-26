@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 from twisted.python.components import registerAdapter
-from coldstar.lib.db.interfaces import IDataBaseService
 from sqlalchemy import or_
 from twisted.application.service import Service
 from twisted.internet import threads
 from zope.interface import implementer
 
+from coldstar.lib.db.interfaces import IDataBaseService
 from coldstar.application.sage.interfaces import ISettingsService
 from coldstar.lib.excs import SerializableBaseException
+from coldstar.lib.utils import safe_int
 
 
 __author__ = 'viruzzz-kun'
@@ -16,13 +17,6 @@ __author__ = 'viruzzz-kun'
 class ENodeNotFound(SerializableBaseException):
     def __init__(self, name):
         self.message = u'Node "%s" not found' % name
-
-
-def _safe_int(value):
-    try:
-        return int(value)
-    except ValueError:
-        return value
 
 
 @implementer(ISettingsService)
@@ -38,7 +32,7 @@ class SettingsService(Service):
                 result = session.query(Settings).filter(Settings.path == key).first()
                 if result is not None:
                     return {
-                        result.path: _safe_int(result.value)
+                        result.path: safe_int(result.value)
                     }
                 raise ENodeNotFound(key)
 
@@ -51,7 +45,7 @@ class SettingsService(Service):
                 if not nodes:
                     raise ENodeNotFound(key)
                 return dict(
-                    (r.path, _safe_int(r.value))
+                    (r.path, safe_int(r.value))
                     for r in nodes
                 )
 
