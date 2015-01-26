@@ -5,7 +5,7 @@ import re
 import threading
 import traceback
 from twisted.application.service import Service
-from twisted.internet import defer, threads
+from twisted.internet import threads
 from twisted.python.components import registerAdapter
 from zope.interface import implementer
 from coldstar.lib.db.interfaces import IDataBaseService
@@ -43,7 +43,6 @@ class CounterService(Service):
         self.db = db_service
         self.__lock = threading.Lock()
 
-    @defer.inlineCallbacks
     def acquire(self, counter_id, client_id=None):
         """Формирование externalId (номер обращения/истории болезни)."""
         from .models import rbCounter, ClientIdentification, rbAccountingSystem
@@ -86,7 +85,6 @@ class CounterService(Service):
                 # session.rollback()
                 return external_id
 
-        external_id = yield threads.deferToThread(worker)
-        defer.returnValue(external_id)
+        return threads.deferToThread(worker)
 
 registerAdapter(CounterService, IDataBaseService, ICounterService)

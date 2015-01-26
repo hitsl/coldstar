@@ -3,7 +3,7 @@ from twisted.python.components import registerAdapter
 from coldstar.lib.db.interfaces import IDataBaseService
 from sqlalchemy import or_
 from twisted.application.service import Service
-from twisted.internet import defer, threads
+from twisted.internet import threads
 from zope.interface import implementer
 
 from coldstar.application.sage.interfaces import ISettingsService
@@ -30,7 +30,6 @@ class SettingsService(Service):
     def __init__(self, database_service):
         self.db = database_service
 
-    @defer.inlineCallbacks
     def get_value(self, key, subtree):
         from .models import Settings
 
@@ -45,7 +44,10 @@ class SettingsService(Service):
 
         def get_subtree():
             with self.db.context_session(True) as session:
-                nodes = session.query(Settings).filter(or_(Settings.path.startswith(key + '.'), Settings.path == key)).all()
+                query = session.query(Settings)
+                if key:
+                    query = query.filter(or_(Settings.path.startswith(key + '.'), Settings.path == key))
+                nodes = query.all()
                 if not nodes:
                     raise ENodeNotFound(key)
                 return dict(
@@ -54,13 +56,10 @@ class SettingsService(Service):
                 )
 
         if subtree:
-            result = yield threads.deferToThread(get_subtree)
+            return threads.deferToThread(get_subtree)
         else:
-            result = yield threads.deferToThread(get_exact)
+            return threads.deferToThread(get_exact)
 
-        defer.returnValue(result)
-
-    @defer.inlineCallbacks
     def set_value(self, key, value):
         def make():
             with self.db.context_session(True) as session:
@@ -73,6 +72,6 @@ class SettingsService(Service):
                 session.add(Settings)
                 session.commit()
 
-        yield threads.deferToThread(make)
+        return threads.deferToThread(make)
 
 registerAdapter(SettingsService, IDataBaseService, ISettingsService)
