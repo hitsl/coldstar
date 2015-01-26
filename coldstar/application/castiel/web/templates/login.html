@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %} > Авторизация{% endblock %}
+{% block title %}Авторизация{% endblock %}
 
 {% block modules_css %}
 <style type="text/css">
@@ -25,17 +25,15 @@
         {% endwith %}
 
         <div class="form-group">
-            <div class="control-label">Имя пользователя</div>
-            <input class="form-control" name="login">
+            <input class="form-control" type="text" name="login" placeholder="Имя пользователя">
         </div>
         <div class="form-group">
-            <div class="control-label">Пароль</div>
-            <input class="form-control" type="password" name="password">
+            <input class="form-control" type="password" name="password" placeholder="Пароль">
         </div>
 
         <div class="control-group">
             <div class="controls">
-                <button type="submit" class="btn btn-success btn-large btn-block">Войти</button>
+                <button type="submit" class="btn btn-success btn-lg btn-block">Войти</button>
             </div>
         </div>
     </form>
