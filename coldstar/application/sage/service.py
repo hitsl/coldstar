@@ -44,7 +44,10 @@ class SettingsService(Service):
 
         def get_subtree():
             with self.db.context_session(True) as session:
-                nodes = session.query(Settings).filter(or_(Settings.path.startswith(key + '.'), Settings.path == key)).all()
+                query = session.query(Settings)
+                if key:
+                    query = query.filter(or_(Settings.path.startswith(key + '.'), Settings.path == key))
+                nodes = query.all()
                 if not nodes:
                     raise ENodeNotFound(key)
                 return dict(

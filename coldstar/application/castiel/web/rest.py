@@ -72,11 +72,11 @@ class CastielApiResource(Resource, CastielResourceMixin):
         :return:
         """
         j = self._get_args(request)
-        result = self.service.release_token(j['token'].decode('hex'))
-        return {
+        result = yield self.service.release_token(j['token'].decode('hex'))
+        defer.returnValue({
             'success': result,
             'token': j['token'],
-        }
+        })
 
     @defer.inlineCallbacks
     def check_token(self, request):
