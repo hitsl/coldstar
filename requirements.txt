@@ -2,5 +2,7 @@ twisted
 Autobahn
 jinja2
 sqlalchemy
+cython
+cymysql
 itsdangerous
 pyyaml
