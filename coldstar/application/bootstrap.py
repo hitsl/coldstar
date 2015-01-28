@@ -30,7 +30,7 @@ class RootService(MultiService):
         MultiService.__init__(self)
         from twisted.application.internet import TCPServer
         from twisted.web.server import Site
-        from twisted.web.http import proxiedLogFormatter
+        from coldstar.lib.proxied_logger import proxiedLogFormatter
 
         config = {}
 
