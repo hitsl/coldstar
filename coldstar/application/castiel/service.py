@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from twisted.python.components import registerAdapter
+from coldstar.lib.db.interfaces import IDataBaseService
+from coldstar.lib.utils import must_be_deferred
 import os
 import time
 from hashlib import md5
@@ -35,10 +38,10 @@ class EInvalidCredentials(SerializableBaseException):
 class CastielService(Service):
     expiry_time = 3600
     clean_period = 10
-    db_service = None
     check_duplicate_tokens = False
 
-    def __init__(self):
+    def __init__(self, database_service):
+        self.db = database_service
         self.tokens = {}
         self.expired_cleaner = None
 
@@ -48,7 +51,7 @@ class CastielService(Service):
         from coldstar.application.castiel.models import Person
 
         def get_user_id():
-            with self.db_service.context_session(True) as session:
+            with self.db.context_session(True) as session:
                 result = session.query(Person).filter(Person.login == login, Person.password == md5(password).hexdigest()).first()
                 if result:
                     return result.id
@@ -66,12 +69,14 @@ class CastielService(Service):
         self.tokens[token] = (deadline, user_id)
         defer.returnValue((token, deadline, user_id))
 
+    @must_be_deferred
     def release_token(self, token):
         if token in self.tokens:
             del self.tokens[token]
-            return True
+            return defer.succeed(True)
         raise EExpiredToken(token)
 
+    @must_be_deferred
     def check_token(self, token, prolong=False):
         if token not in self.tokens:
             raise EExpiredToken(token)
@@ -80,14 +85,15 @@ class CastielService(Service):
             raise EExpiredToken(token)
         if prolong:
             self.prolong_token(token)
-        return user_id, deadline
+        return defer.succeed((user_id, deadline))
 
+    @must_be_deferred
     def prolong_token(self, token):
         if token not in self.tokens:
             raise EExpiredToken(token)
         deadline = time.time() + self.expiry_time
         self.tokens[token] = (deadline, self.tokens[token][1])
-        return True, deadline
+        return defer.succeed((True, deadline))
 
     def _clean_expired(self):
         now = time.time()
@@ -104,3 +110,5 @@ class CastielService(Service):
     def stopService(self):
         Service.stopService(self)
         self.expired_cleaner.stop()
+
+registerAdapter(CastielService, IDataBaseService, ICasService)

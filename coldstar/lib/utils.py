@@ -58,3 +58,17 @@ def safe_traverse(obj, *args, **kwargs):
         return obj.get(args[0], default)
     else:
         return safe_traverse(obj.get(args[0]), *args[1:], **kwargs)
+
+
+def must_be_deferred(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return defer.maybeDeferred(func, *args, **kwargs)
+    return wrapper
+
+
+def safe_int(value):
+    try:
+        return int(value)
+    except ValueError:
+        return value

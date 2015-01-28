@@ -15,7 +15,7 @@ class Options(usage.Options):
     synopsis = "[options]"
     longdesc = "Make a ColdStar server."
     optParameters = [
-        ['config', 'c', 'config.yaml', 'Configuration file'],
+        ['config', 'c', None, 'Configuration file'],
     ]
     optFlags = []
 

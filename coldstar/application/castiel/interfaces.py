@@ -5,7 +5,12 @@ __author__ = 'mmalkov'
 
 
 class ICasService(Interface):
-    db_service = Attribute('db_service', 'Database service')
+    db = Attribute('db', 'Database service')
+    expiry_time = Attribute('expiry_time', 'Token time to live')
+    clean_period = Attribute('clean_period', 'How often service should check for expired tokens')
+    check_duplicate_tokens = Attribute(
+        'check_duplicate_tokens',
+        'Should the service raise exception if user already took a token?')
 
     def acquire_token(self, login, password):
         """
