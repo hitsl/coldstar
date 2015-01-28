@@ -45,29 +45,38 @@ class CastielService(Service):
         self.tokens = {}
         self.expired_cleaner = None
 
-    @defer.inlineCallbacks
+    @must_be_deferred
     def acquire_token(self, login, password):
         from twisted.internet.threads import deferToThread
         from coldstar.application.castiel.models import Person
 
         def get_user_id():
             with self.db.context_session(True) as session:
-                result = session.query(Person).filter(Person.login == login, Person.password == md5(password).hexdigest()).first()
+                if isinstance(password, unicode):
+                    pwd = password.encode('utf-8', errors='ignore')
+                elif isinstance(password, str):
+                    pwd = password
+                else:
+                    raise TypeError('password should be either unicode ot str')
+                result = session.query(Person).filter(Person.login == login, Person.password == md5(pwd).hexdigest()).first()
                 if result:
                     return result.id
                 raise EInvalidCredentials
 
-        user_id = yield deferToThread(get_user_id)
+        def _cb(user_id):
+            ctime = time.time()
+            if self.check_duplicate_tokens and any((age > ctime and user_id == uid) for token, (age, uid) in self.tokens.iteritems()):
+                raise ETokenAlreadyAcquired(user_id)
 
-        ctime = time.time()
-        if self.check_duplicate_tokens and any((age > ctime and user_id == uid) for token, (age, uid) in self.tokens.iteritems()):
-            raise ETokenAlreadyAcquired(user_id)
+            token = os.urandom(16)
 
-        token = os.urandom(16)
+            deadline = ctime + self.expiry_time
+            self.tokens[token] = (deadline, user_id)
+            return token, deadline, user_id
 
-        deadline = ctime + self.expiry_time
-        self.tokens[token] = (deadline, user_id)
-        defer.returnValue((token, deadline, user_id))
+        d = deferToThread(get_user_id)
+        d.addCallback(_cb)
+        return d
 
     @must_be_deferred
     def release_token(self, token):
