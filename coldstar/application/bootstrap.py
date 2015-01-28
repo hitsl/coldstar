@@ -30,6 +30,7 @@ class RootService(MultiService):
         MultiService.__init__(self)
         from twisted.application.internet import TCPServer
         from twisted.web.server import Site
+        from twisted.web.http import proxiedLogFormatter
 
         config = {}
 
@@ -53,7 +54,7 @@ class RootService(MultiService):
 <head><style>body {background: #5090F0; color: white}</style></head>
 <body><h1>ColdStar</h1><h2>Подсистема всякой ерунды</h2>Давайте придумаем более человеческое название...</body>
 </html>""".encode('utf-8'), 'text/html; charset=utf-8'))
-        self.site = Site(self.root_resource)
+        self.site = Site(self.root_resource, logFormatter=proxiedLogFormatter)
 
         self.web_service = TCPServer(
             int(safe_traverse(config, 'web', 'port', default=5000)),
