@@ -2,7 +2,8 @@
 
 CWD=`pwd`
 
-VIRTUALENV_PATH=${CWD}/venv
+[[ -v VIRTUALENV_PATH ]] || VIRTUALENV_PATH=${CWD}/venv
+echo "virtualenv path  is: ${VIRTUALENV_PATH}"
 if [ ! -d "${VIRTUALENV_PATH}" ]
 then
     if [ $1 ]
@@ -21,6 +22,6 @@ then
     virtualenv venv || (echo "Virtualenv is not installed" && exit -1)
     . ${VIRTUALENV_PATH}/bin/activate
     pip install -r ${REQUIREMENTS_FILE} || (echo "Virtualenv creation unsuccessful" && exit -1)
-    patch -p1 -d venv/lib/python2.7/site-packages < twisted.patch.diff
+    patch -p1 -d ${VIRTUALENV_PATH}/lib/python2.7/site-packages < twisted.patch.diff
     deactivate
 fi
