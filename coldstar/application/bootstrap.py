@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from ConfigParser import ConfigParser
+import os
 import twisted.web.static
 
 from twisted.web.resource import IResource, Resource
@@ -29,7 +30,7 @@ class RootService(MultiService):
     def __init__(self, arg_config):
         MultiService.__init__(self)
         from twisted.application.internet import TCPServer
-        from twisted.web.server import Site
+        from coldstar.lib.web.wrappers import TemplatedSite, DefaultRootResource
         from coldstar.lib.proxied_logger import proxiedLogFormatter
 
         config = {}
@@ -47,14 +48,13 @@ class RootService(MultiService):
             except (IOError, OSError):
                 print(u'Cannot load config. Using defaults.')
 
-        self.root_resource = Resource()
-        self.root_resource.putChild('', twisted.web.static.Data(u"""
-<!DOCTYPE html>
-<html>
-<head><style>body {background: #5090F0; color: white}</style></head>
-<body><h1>ColdStar</h1><h2>Подсистема всякой ерунды</h2>Давайте придумаем более человеческое название...</body>
-</html>""".encode('utf-8'), 'text/html; charset=utf-8'))
-        self.site = Site(self.root_resource, logFormatter=proxiedLogFormatter)
+        self.root_resource = DefaultRootResource()
+        current_dir = os.path.dirname(__file__)
+        self.site = TemplatedSite(
+            self.root_resource,
+            os.path.join(current_dir, 'web', 'static'),
+            os.path.join(current_dir, 'web', 'templates'),
+            logFormatter=proxiedLogFormatter)
 
         self.web_service = TCPServer(
             int(safe_traverse(config, 'web', 'port', default=5000)),

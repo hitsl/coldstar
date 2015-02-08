@@ -1,31 +1,20 @@
 # -*- coding: utf-8 -*-
+import os
 import time
 
 from twisted.python import failure
-
 from twisted.python.components import registerAdapter
-from coldstar.lib.auth.interfaces import IAuthenticator
-import os
 from twisted.application.service import Service
 from twisted.internet import defer
 from twisted.internet.task import LoopingCall
 from zope.interface import implementer
-from coldstar.lib.castiel.interfaces import ICasService
-from coldstar.lib.excs import SerializableBaseException
+
+from coldstar.lib.auth.interfaces import IAuthenticator
+from .exceptions import EExpiredToken, ETokenAlreadyAcquired
+from .interfaces import ICasService
 
 
 __author__ = 'mmalkov'
-
-
-class EExpiredToken(SerializableBaseException):
-    def __init__(self, token):
-        self.token = token
-        self.message = 'Token %s is expired or not taken' % token.encode('hex')
-
-
-class ETokenAlreadyAcquired(SerializableBaseException):
-    def __init__(self, user_id):
-        self.message = 'Token for user id = %s already taken' % user_id
 
 
 @implementer(ICasService)
