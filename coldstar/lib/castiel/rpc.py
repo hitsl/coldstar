@@ -5,7 +5,6 @@ from twisted.internet import defer
 from twisted.web.resource import IResource, Resource
 from zope.interface import implementer
 
-from coldstar.application.castiel.web.root import CastielResourceMixin
 from coldstar.lib.utils import api_method
 
 
@@ -13,7 +12,7 @@ __author__ = 'mmalkov'
 
 
 @implementer(IResource)
-class CastielApiResource(Resource, CastielResourceMixin):
+class CastielApiResource(Resource):
     isLeaf = True
 
     def __init__(self, castiel_service):

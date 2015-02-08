@@ -8,10 +8,10 @@ from twisted.web.static import File
 from twisted.web.util import redirectTo
 from zope.interface import implementer
 
-from coldstar.application.castiel.service import EExpiredToken
+from coldstar.lib.castiel.service import EExpiredToken, ETokenAlreadyAcquired
 from .root import CastielResourceMixin
 from .session import ICastielWebSession
-from ..service import EInvalidCredentials, ETokenAlreadyAcquired
+from coldstar.lib.auth.exceptions import EInvalidCredentials
 
 
 __author__ = 'viruzzz-kun'

@@ -64,7 +64,7 @@ class RootService(MultiService):
         self.web_service.setServiceParent(self)
 
         self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
-        self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'module', 'cerber', default={}))
+        # self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'module', 'cerber', default={}))
         self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'module', 'castiel', default={}))
         self.sage_service = self.bootstrap_sage(safe_traverse(config, 'module', 'sage', default={}))
         self.counter_service = self.bootstrap_counter(safe_traverse(config, 'module', 'counter', default={}))
@@ -81,7 +81,7 @@ class RootService(MultiService):
         from coldstar.application.sage.interfaces import ISettingsService
 
         service = ISettingsService(self.db_service)
-        self.setServiceParent(self)
+        service.setServiceParent(self)
 
         resource = IResource(service)
         self.root_resource.putChild('sage', resource)
@@ -125,9 +125,12 @@ class RootService(MultiService):
         return service
 
     def bootstrap_castiel(self, config):
-        from coldstar.application.castiel.interfaces import ICasService
+        from coldstar.application.castiel import auth
+        from coldstar.lib.castiel.interfaces import ICasService
+        from coldstar.lib.auth.interfaces import IAuthenticator
 
-        service = ICasService(self.db_service)
+        auth = IAuthenticator(self.db_service)
+        service = ICasService(auth)
         service.expiry_time = int(safe_traverse(config, 'expiry_time', default=3600))
         service.clean_period = int(safe_traverse(config, 'clean_period', default=10))
         service.check_duplicate_tokens = safe_traverse(config, 'check_duplicate_tokens', default=False)

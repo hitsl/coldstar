@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-from sqlalchemy import Column, DateTime, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
+from zope.interface import implementer
+from .interfaces import IMisUserModel
 
 
 Base = declarative_base()
@@ -9,6 +11,7 @@ metadata = Base.metadata
 __author__ = 'mmalkov'
 
 
+@implementer(IMisUserModel)
 class Person(Base):
     __tablename__ = "Person"
 
