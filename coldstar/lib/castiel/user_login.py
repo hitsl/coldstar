@@ -55,7 +55,7 @@ class CastielLoginResource(Resource):
         try:
             login = request.args['login'][0].decode('utf-8')
             password = request.args['password'][0].decode('utf-8')
-            token, deadline, user_id = yield self.service.acquire_token(login, password)
+            ato = yield self.service.acquire_token(login, password)
         except EInvalidCredentials:
             print 'Invalid credentials'
             fm.flash_message(dict(
@@ -67,7 +67,7 @@ class CastielLoginResource(Resource):
             fm.back = None
             defer.returnValue(redirectTo(back, request))
         else:
-            token_txt = token.encode('hex')
+            token_txt = ato.token.encode('hex')
             request.addCookie(self.cookie_name, token_txt, path='/', comment='Castiel Auth Cookie')
             fm.back = None
             defer.returnValue(redirectTo(back, request))

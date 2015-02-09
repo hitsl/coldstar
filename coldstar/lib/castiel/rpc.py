@@ -58,12 +58,12 @@ class CastielApiResource(Resource):
         j = self._get_args(request)
         login = j['login']
         password = j['password']
-        token, deadline, user_id = yield self.service.acquire_token(login, password)
+        ato = yield self.service.acquire_token(login, password)
         defer.returnValue({
             'success': True,
-            'token': token.encode('hex'),
-            'deadline': deadline,
-            'user_id': user_id,
+            'token': ato.token.encode('hex'),
+            'deadline': ato.deadline,
+            'user_id': ato.user_id,
         })
 
     @defer.inlineCallbacks
