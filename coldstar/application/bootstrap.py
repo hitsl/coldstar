@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 from ConfigParser import ConfigParser
 import os
-import twisted.web.static
 
-from twisted.web.resource import IResource, Resource
+from twisted.web.resource import IResource
 from twisted.application.service import MultiService
 
 from coldstar.lib.utils import safe_traverse, safe_int
@@ -64,63 +63,13 @@ class RootService(MultiService):
         self.web_service.setServiceParent(self)
 
         self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
-        # self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'module', 'cerber', default={}))
         self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'module', 'castiel', default={}))
-        self.sage_service = self.bootstrap_sage(safe_traverse(config, 'module', 'sage', default={}))
-        self.counter_service = self.bootstrap_counter(safe_traverse(config, 'module', 'counter', default={}))
 
     def bootstrap_database(self, config):
         from coldstar.lib.db.service import DataBaseService
 
         service = DataBaseService(safe_traverse(config, 'url', default='mysql://tmis:q1w2e3r4t5@127.0.0.1/hospital1'))
         service.setServiceParent(self)
-
-        return service
-
-    def bootstrap_sage(self, config):
-        from coldstar.application.sage.interfaces import ISettingsService
-
-        service = ISettingsService(self.db_service)
-        service.setServiceParent(self)
-
-        resource = IResource(service)
-        self.root_resource.putChild('sage', resource)
-
-        return service
-
-    def bootstrap_counter(self, config):
-        from coldstar.application.counter.interfaces import ICounterService
-
-        service = ICounterService(self.db_service)
-        service.setServiceParent(self)
-
-        resource = IResource(service)
-        self.root_resource.putChild('counter', resource)
-
-        return service
-
-    def bootstrap_cerber(self, config):
-        from autobahn.twisted.resource import WebSocketResource
-        from coldstar.application.cerber.interfaces import IWsLockFactory
-
-        from coldstar.application.cerber.service import ColdStarService
-        from coldstar.application.cerber.test_page import TestPageResource
-
-        service = ColdStarService()
-        service.short_timeout = int(safe_traverse(config, 'rest_expiry_time', default=60))
-        service.long_timeout = int(safe_traverse(config, 'expiry_time', default=3600))
-        service.setServiceParent(self)
-
-        rest_resource = IResource(service)
-
-        ws_factory = IWsLockFactory(service)
-        ws_resource = WebSocketResource(ws_factory)
-
-        test_page_resource = TestPageResource()
-
-        self.root_resource.putChild('lock', rest_resource)
-        self.root_resource.putChild('ws', ws_resource)
-        self.root_resource.putChild('test', test_page_resource)
 
         return service
 
