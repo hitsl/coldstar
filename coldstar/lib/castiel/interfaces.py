@@ -40,3 +40,9 @@ class ICasService(Interface):
         :param token:
         :return:
         """
+
+
+class IAuthTokenObject(Interface):
+    user_id = Attribute('user_id', 'User identifier')
+    token = Attribute('token', 'Unique authentication token')
+    deadline = Attribute('deadline', 'Time at which token will expire')
