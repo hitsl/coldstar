@@ -88,8 +88,8 @@ class CastielApiResource(Resource):
         :return:
         """
         j = self._get_args(request)
-        # Don't implicitly prolong token
-        user_id, deadline = yield self.service.check_token(j['token'].decode('hex'), False)
+        prolong = j.get('prolong', False)
+        user_id, deadline = yield self.service.check_token(j['token'].decode('hex'), prolong)
         defer.returnValue({
             'success': True,
             'user_id': user_id,
