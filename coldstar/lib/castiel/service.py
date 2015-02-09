@@ -68,6 +68,9 @@ class CastielService(Service):
         self.tokens[token] = (deadline, self.tokens[token][1])
         return defer.succeed((True, deadline))
 
+    def is_valid_credentials(self, login, password):
+        return self.auth.get_user(login, password)
+
     def _clean_expired(self):
         now = time.time()
         for token, (t, _) in self.tokens.items():
