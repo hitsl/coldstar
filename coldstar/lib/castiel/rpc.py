@@ -5,7 +5,6 @@ from twisted.internet import defer
 from twisted.web.resource import IResource, Resource
 from zope.interface import implementer
 
-from coldstar.application.castiel.web.root import CastielResourceMixin
 from coldstar.lib.utils import api_method
 
 
@@ -13,7 +12,7 @@ __author__ = 'mmalkov'
 
 
 @implementer(IResource)
-class CastielApiResource(Resource, CastielResourceMixin):
+class CastielApiResource(Resource):
     isLeaf = True
 
     def __init__(self, castiel_service):
@@ -42,6 +41,9 @@ class CastielApiResource(Resource, CastielResourceMixin):
 
             elif leaf == 'prolong':
                 return self.prolong_token(request)
+
+            elif leaf == 'valid':
+                return self.is_valid_credentials(request)
 
         request.setResponseCode(404)
         return '404 Not Found'
@@ -86,8 +88,8 @@ class CastielApiResource(Resource, CastielResourceMixin):
         :return:
         """
         j = self._get_args(request)
-        # Implicitly prolong token...
-        user_id, deadline = yield self.service.check_token(j['token'].decode('hex'), True)
+        # Don't implicitly prolong token
+        user_id, deadline = yield self.service.check_token(j['token'].decode('hex'), False)
         defer.returnValue({
             'success': True,
             'user_id': user_id,
@@ -108,6 +110,20 @@ class CastielApiResource(Resource, CastielResourceMixin):
             'success': success,
             'deadline': deadline,
             'token': j['token'],
+        })
+
+    @defer.inlineCallbacks
+    def is_valid_credentials(self, request):
+        """
+        Check whether credentials are valid
+        :param request:
+        :return:
+        """
+        j = self._get_args(request)
+        user = yield self.service.is_valid_credentials(j['login'], j['password'])
+        defer.returnValue({
+            'success': True,
+            'user_id': user.user_id,
         })
 
     @staticmethod
