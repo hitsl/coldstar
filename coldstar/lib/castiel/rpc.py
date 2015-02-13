@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from itsdangerous import json
+import time
 from twisted.internet import defer
 from twisted.web.resource import IResource, Resource
 from zope.interface import implementer
@@ -71,6 +72,7 @@ class CastielApiResource(Resource):
             'success': True,
             'token': ato.token.encode('hex'),
             'deadline': ato.deadline,
+            'ttl': time.time() - ato.deadline,
             'user_id': ato.user_id,
         })
 
@@ -102,6 +104,7 @@ class CastielApiResource(Resource):
             'success': True,
             'user_id': user_id,
             'deadline': deadline,
+            'ttl': time.time() - deadline,
             'token': j['token'],
         })
 
@@ -117,6 +120,7 @@ class CastielApiResource(Resource):
         defer.returnValue({
             'success': success,
             'deadline': deadline,
+            'ttl': time.time() - deadline,
             'token': j['token'],
         })
 
