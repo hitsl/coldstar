@@ -83,6 +83,8 @@ class RootService(MultiService):
         service.expiry_time = int(safe_traverse(config, 'expiry_time', default=3600))
         service.clean_period = int(safe_traverse(config, 'clean_period', default=10))
         service.check_duplicate_tokens = safe_traverse(config, 'check_duplicate_tokens', default=False)
+        service.cors_domain = safe_traverse(config, 'cors_domain', default='http://127.0.0.1:5000')
+        service.cookie_domain = safe_traverse(config, 'cookie_domain', default='127.0.0.1')
         service.setServiceParent(self)
 
         resource = IResource(service)

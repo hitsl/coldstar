@@ -22,7 +22,15 @@ class CastielApiResource(Resource):
     @api_method
     # This is custom Twisted feature. See file 'twisted.patch.diff' for details
     def render(self, request):
+        request.setHeader('Access-Control-Allow-Origin', self.service.cors_domain)
+        if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
+            # Preflight Request
+            request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            request.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+            request.setHeader('Access-Control-Max-Age', '600')
+            return ''
         request.setHeader('Content-Type', 'application/json; charset=utf-8')
+
         request.postpath = filter(None, request.postpath)
         ppl = len(request.postpath)
         if ppl == 0:
