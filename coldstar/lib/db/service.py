@@ -21,7 +21,7 @@ class DataBaseService(Service):
 
     def startService(self):
         Service.startService(self)
-        self.db = sqlalchemy.create_engine(self.url)
+        self.db = sqlalchemy.create_engine(self.url, pool_recycle=3600)
         self.session = sqlalchemy.orm.sessionmaker(bind=self.db)
 
     def stopService(self):
