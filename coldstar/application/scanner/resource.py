@@ -37,7 +37,7 @@ class ScanResource(Resource):
 
         elif ppl == 1:
             leaf = request.postpath[0]
-            if leaf == 'scanners':
+            if leaf == 'list':
                 request.setHeader('Content-Type', 'application/json; charset=utf-8')
                 return self.scanners()
             elif leaf == 'scan':
@@ -64,12 +64,15 @@ class ScanResource(Resource):
     def scan(self, request):
         name = request.args.get('name', [])[0]
         producer = yield self.service.getProducer(name)
-        request.registerProducer(producer)
+        producer.consumer = request
 
         def _cb(name):
-            request.finish()
+            print('Process Finished: %s' % name)
+            if not request._disconnected:
+                request.finish()
 
         producer.session_deferred.addCallbacks(_cb)
+        producer.start()
 
 
 registerAdapter(ScanResource, IScanService, IResource)

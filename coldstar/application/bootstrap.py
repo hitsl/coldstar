@@ -64,6 +64,7 @@ class RootService(MultiService):
 
         self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
         self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'module', 'castiel', default={}))
+        self.scan_service = self.bootstrap_scanner(safe_traverse(config, 'module', 'scan', default={}))
 
     def bootstrap_database(self, config):
         from coldstar.lib.db.service import DataBaseService
@@ -71,6 +72,16 @@ class RootService(MultiService):
         service = DataBaseService(safe_traverse(config, 'url', default='mysql://tmis:q1w2e3r4t5@127.0.0.1/hospital1'))
         service.setServiceParent(self)
 
+        return service
+
+    def bootstrap_scanner(self, config):
+        from coldstar.application.scanner.service import ScanService
+
+        service = ScanService()
+        service.cors_domain = safe_traverse(config, 'cors_domain', default='http://127.0.0.1:5000')
+        service.setServiceParent(self)
+        resource = IResource(service)
+        self.root_resource.putChild('scan', resource)
         return service
 
     def bootstrap_castiel(self, config):
