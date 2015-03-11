@@ -62,7 +62,11 @@ class ScanResource(Resource):
         ])
 
     def scan(self, request):
-        name = request.args.get('name', [])[0]
+        name = request.args.get('name', [None])[0]
+        if not name:
+            request.setHeader('Content-Type', 'text/plain;charset=utf-8')
+            request.setResponseCode(400)
+            return 'Name should be set'
         deferred = self.service.getImage(name, request)
         finished = request.notifyFinish()
 
