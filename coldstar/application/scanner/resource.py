@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
+from twisted.internet.defer import CancelledError
 from twisted.python.components import registerAdapter
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import NOT_DONE_YET
@@ -39,18 +40,18 @@ class ScanResource(Resource):
             leaf = request.postpath[0]
             if leaf == 'list':
                 request.setHeader('Content-Type', 'application/json; charset=utf-8')
-                return self.scanners()
+                return self.scanners(request)
             elif leaf == 'scan':
                 request.setHeader('Content-Type', 'image/png')
-                self.scan(request)
-                return NOT_DONE_YET
+                return self.scan(request)
         request.setResponseCode(404)
         return ''
 
     @api_method
     @defer.inlineCallbacks
-    def scanners(self):
-        result = yield self.service.getScanners()
+    def scanners(self, request):
+        force = bool(request.args.get('force', [0])[0])
+        result = yield self.service.getScanners(force)
         defer.returnValue([
             {
                 'name': d.name,
@@ -60,19 +61,26 @@ class ScanResource(Resource):
             } for d in result
         ])
 
-    @defer.inlineCallbacks
     def scan(self, request):
         name = request.args.get('name', [])[0]
-        producer = yield self.service.getProducer(name)
-        producer.consumer = request
+        deferred = self.service.getImage(name, request)
+        finished = request.notifyFinish()
+
+        def _finished(_):
+            print('Request cancelled')
+            deferred.cancel()
 
         def _cb(name):
             print('Process Finished: %s' % name)
-            if not request._disconnected:
+            request.finish()
+
+        def _eb(failure):
+            if not isinstance(failure.value, CancelledError):
                 request.finish()
 
-        producer.session_deferred.addCallbacks(_cb)
-        producer.start()
+        deferred.addCallbacks(_cb, _eb)
+        finished.addErrback(_finished)
+        return NOT_DONE_YET
 
 
 registerAdapter(ScanResource, IScanService, IResource)

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import PIL.Image
+import signal
 from pyinsane.abstract import Scanner
 from pyinsane.rawapi import SaneException
 
@@ -9,6 +10,14 @@ __author__ = 'viruzzz-kun'
 
 
 max_width = 2560
+
+
+def handler(number, frame):
+    print('INTERRUPTED')
+    exit(0)
+
+
+signal.signal(signal.SIGINT, handler)
 
 
 def main():
@@ -26,7 +35,11 @@ def main():
                 print('TOOK ATTEMPTS TO SET DPI: %s' % (i+1))
             break
     sys.stdout.write('SCANNING\n')
-    scan_session = device.scan(multiple=False)
+    try:
+        scan_session = device.scan(multiple=False)
+    except SaneException, e:
+        print('FAILED: %r' % e)
+        exit(1)
     try:
         while True:
             scan_session.scan.read()
