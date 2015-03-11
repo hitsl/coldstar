@@ -24,7 +24,12 @@ class CastielApiResource(Resource):
     @api_method
     # This is custom Twisted feature. See file 'twisted.patch.diff' for details
     def render(self, request):
-        request.setHeader('Access-Control-Allow-Origin', self.service.cors_domain)
+        """
+        :type request: coldstar.lib.web.wrappers.TemplatedRequest
+        :param request:
+        :return:
+        """
+        request.setHeader('Access-Control-Allow-Origin', request.site.cors_domain)
         if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
             # Preflight Request
             request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')

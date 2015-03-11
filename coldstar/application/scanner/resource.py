@@ -18,11 +18,11 @@ class ScanResource(Resource):
 
     def render(self, request):
         """
-        :type request: twisted.web.server.Request
+        :type request: coldstar.lib.web.wrappers.TemplatedRequest
         :param request:
         :return:
         """
-        request.setHeader('Access-Control-Allow-Origin', self.service.cors_domain)
+        request.setHeader('Access-Control-Allow-Origin', request.site.cors_domain)
         if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
             # Preflight Request
             request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
