@@ -1,21 +1,34 @@
 # -*- coding: utf-8 -*-
 import collections
+import json
 import os
-from pyinsane.abstract import get_devices
 import time
+
 from twisted.application.service import Service
-from twisted.internet import defer, threads
-from twisted.internet.error import ConnectionDone, ConnectionClosed, ProcessExitedAlready
-from twisted.internet.interfaces import IPushProducer
-from twisted.internet.protocol import ProcessProtocol, connectionDone
-from twisted.protocols.basic import LineReceiver, LineOnlyReceiver
+from twisted.internet import defer
+from twisted.internet.error import ConnectionClosed, ProcessExitedAlready
+from twisted.internet.protocol import ProcessProtocol
+from twisted.protocols.basic import LineReceiver
 from zope.interface import implementer
+
 from .interfaces import IScanService
+
 
 __author__ = 'viruzzz-kun'
 
 
-@implementer(IPushProducer)
+def chain_deferreds(host, chainee):
+    def _cb(result):
+        chainee.callback(result)
+        return result
+
+    def _eb(failure):
+        chainee.errback(failure)
+        return failure
+
+    host.addCallbacks(_cb, _eb)
+
+
 class ScanProtocol(ProcessProtocol, LineReceiver):
     delimiter = '\n'
 
@@ -24,11 +37,6 @@ class ScanProtocol(ProcessProtocol, LineReceiver):
         self.name = dev_name
         self.deferred = defer.Deferred(lambda w: self.stop())
         self.consumer = consumer
-
-    def dataReceived(self, data):
-        # if not hasattr(self.transport, 'disconnecting'):
-        #     self.transport.disconnecting = False  # Dunno why
-        return LineReceiver.dataReceived(self, data)
 
     def outReceived(self, data):
         return self.dataReceived(data)
@@ -72,6 +80,41 @@ class ScanProtocol(ProcessProtocol, LineReceiver):
             pass
 
 
+class GetDevicesProtocol(ProcessProtocol):
+    def __init__(self):
+        self.process = None
+        self.deferred = defer.Deferred()
+        self.buffer = []
+
+    def outReceived(self, data):
+        self.buffer.append(data)
+
+    def processEnded(self, reason):
+        """
+        :type reason: twisted.python.failure.Failure
+        :param reason:
+        :return:
+        """
+        if self.deferred.called:
+            return
+        if isinstance(reason.value, ConnectionClosed):
+            self.deferred.callback(json.loads(b''.join(self.buffer)))
+        else:
+            self.deferred.errback(reason)
+
+    def start(self):
+        print('sane_get_devices forced')
+        from twisted.internet import reactor
+        self.process = reactor.spawnProcess(
+            self,
+            'python',
+            ('python', os.path.join(os.path.dirname(__file__), 'worker_gd.py')),
+            env=None,
+            childFDs={0: 'w', 1: 'r', 2: 2}
+        )
+        self.process.disconnecting = False
+
+
 @implementer(IScanService)
 class ScanService(Service):
     cache_timeout = 300
@@ -91,7 +134,9 @@ class ScanService(Service):
 
     def getScanners(self, force=False):
         if self.scan_list_deferred:
-            return self.scan_list_deferred
+            d = defer.Deferred()
+            chain_deferreds(self.scan_list_deferred, d)
+            return d
 
         if not force:
             l, deadline = self.cached_scan_list
@@ -108,8 +153,12 @@ class ScanService(Service):
             self.cached_scan_list = ([], 0)
             return failure
 
-        d = self.scan_list_deferred = threads.deferToThread(get_devices)
-        d.addCallbacks(_cb, _eb)
+        protocol = GetDevicesProtocol()
+        protocol.deferred.addCallbacks(_cb, _eb)
+        self.scan_list_deferred = protocol.deferred
+        protocol.start()
+        d = defer.Deferred()
+        chain_deferreds(protocol.deferred, d)
         return d
 
     def promote(self, name):

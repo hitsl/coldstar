@@ -27,9 +27,10 @@ def main():
     for i in xrange(10):
         try:
             device.options['resolution'].value = 600
-        except SaneException:
-            if i == 10:
-                print('CANNOT SET DPI')
+        except SaneException, e:
+            if i == 9:
+                print('CANNOT SET DPI: %r' % e)
+                return exit(1)
         else:
             if i:
                 print('TOOK ATTEMPTS TO SET DPI: %s' % (i+1))
@@ -39,7 +40,7 @@ def main():
         scan_session = device.scan(multiple=False)
     except SaneException, e:
         print('FAILED: %r' % e)
-        exit(1)
+        return exit(1)
     try:
         while True:
             scan_session.scan.read()

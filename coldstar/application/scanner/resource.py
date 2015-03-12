@@ -52,14 +52,7 @@ class ScanResource(Resource):
     def scanners(self, request):
         force = bool(request.args.get('force', [0])[0])
         result = yield self.service.getScanners(force)
-        defer.returnValue([
-            {
-                'name': d.name,
-                'vendor': d.vendor,
-                'model': d.model,
-                'dev_type': d.dev_type
-            } for d in result
-        ])
+        defer.returnValue(result)
 
     def scan(self, request):
         name = request.args.get('name', [None])[0]
@@ -76,11 +69,13 @@ class ScanResource(Resource):
 
         def _cb(name):
             print('Process Finished: %s' % name)
-            request.finish()
+            if not request._disconnected:
+                request.finish()
 
         def _eb(failure):
             if not isinstance(failure.value, CancelledError):
-                request.finish()
+                if not request._disconnected:
+                    request.finish()
 
         deferred.addCallbacks(_cb, _eb)
         finished.addErrback(_finished)
