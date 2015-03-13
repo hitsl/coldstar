@@ -11,22 +11,11 @@ from twisted.internet.protocol import ProcessProtocol
 from twisted.protocols.basic import LineReceiver
 from zope.interface import implementer
 
+from coldstar.lib.twisted_helpers import chain_deferreds
 from .interfaces import IScanService
 
 
 __author__ = 'viruzzz-kun'
-
-
-def chain_deferreds(host, chainee):
-    def _cb(result):
-        chainee.callback(result)
-        return result
-
-    def _eb(failure):
-        chainee.errback(failure)
-        return failure
-
-    host.addCallbacks(_cb, _eb)
 
 
 class ScanProtocol(ProcessProtocol, LineReceiver):
@@ -67,7 +56,7 @@ class ScanProtocol(ProcessProtocol, LineReceiver):
         self.process = reactor.spawnProcess(
             self,
             'python',
-            ('python', os.path.join(os.path.dirname(__file__), 'worker.py'), self.name),
+            ('python', os.path.join(os.path.dirname(__file__), 'worker_scan.py'), self.name),
             env=None,
             childFDs={0: 'w', 1: 'r', 2: 2}
         )
@@ -127,9 +116,9 @@ class ScanService(Service):
 
     def getImage(self, dev_name, consumer):
         protocol = ScanProtocol(dev_name, consumer)
-        protocol.deferred.addBoth(self.promote, dev_name)
+        protocol.deferred.addBoth(self.__promote, dev_name)
         self.scan_queues[dev_name].append(protocol)
-        self.promote(dev_name)
+        self.__promote(dev_name)
         return protocol.deferred
 
     def getScanners(self, force=False):
@@ -161,7 +150,7 @@ class ScanService(Service):
         chain_deferreds(protocol.deferred, d)
         return d
 
-    def promote(self, name):
+    def __promote(self, name):
         from twisted.internet import reactor
 
         c = self.scan_currents.get(name)
