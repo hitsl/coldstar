@@ -90,7 +90,8 @@ class DefaultRootResource(Resource):
         self.putChild('', Data(u"""
 <!DOCTYPE html>
 <html>
-<head><style>body {background: #5090F0; color: white}</style></head>
+<head><style>body { color: #fff; background-color: #027eae; font-family: "Segoe UI", "Lucida Grande", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 16px; }
+a, a:visited, a:hover { color: #fff; }</style></head>
 <body><h1>ColdStar</h1><h2>Подсистема всякой ерунды</h2>Давайте придумаем более человеческое название...</body>
 </html>""".encode('utf-8'), 'text/html; charset=utf-8'))
 
