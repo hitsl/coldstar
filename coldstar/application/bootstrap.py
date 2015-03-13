@@ -64,6 +64,7 @@ class RootService(MultiService):
 
         self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
         self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'module', 'castiel', default={}))
+        self.ws_factory = self.bootstrap_websocket(safe_traverse(config, 'websocket', default={}))
 
     def bootstrap_database(self, config):
         from coldstar.lib.db.service import DataBaseService
@@ -91,3 +92,15 @@ class RootService(MultiService):
         self.root_resource.putChild('cas', resource)
 
         return service
+
+    def bootstrap_websocket(self, config):
+        from coldstar.lib.ws.resource import WsResource
+        from coldstar.lib.ws.factory import WsFactory
+
+        factory = WsFactory(
+            safe_traverse(config, 'url', default='ws://127.0.0.1/ws/')
+        )
+        resource = WsResource(factory)
+
+        self.root_resource.putChild('ws', resource)
+        return factory
