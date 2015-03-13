@@ -96,4 +96,15 @@ a, a:visited, a:hover { color: #fff; }</style></head>
 </html>""".encode('utf-8'), 'text/html; charset=utf-8'))
 
 
+class AutoRedirectResource(Resource):
+    def render(self, request):
+        """ Redirect to the resource with a trailing slash if it was omitted
+        :type request: TemplatedRequest
+        :param request:
+        :return:
+        """
+        request.redirect(request.uri + '/')
+        return ""
+
+
 registerAdapter(WebSession, Session, IWebSession)
