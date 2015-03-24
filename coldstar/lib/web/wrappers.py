@@ -3,7 +3,8 @@
 from urllib import urlencode
 
 import jinja2
-from twisted.python.components import registerAdapter
+from twisted.python.components import registerAdapter, Componentized
+from twisted.spread.flavors import Copyable
 from twisted.web.resource import Resource
 from twisted.web.server import Request, Session, Site
 from twisted.web.static import File
@@ -76,12 +77,15 @@ class TemplatedSite(Site):
 
     def __init__(self, root_resource, static_path, template_path, *args, **kwargs):
         Site.__init__(self, root_resource, *args, **kwargs)
+        jinja_loader = self.__jinja_loader = jinja2.FileSystemLoader(template_path)
         self.jinja_env = jinja2.Environment(
             extensions=['jinja2.ext.with_'],
-            loader=jinja2.FileSystemLoader(template_path),
+            loader=jinja_loader,
         )
         root_resource.putChild('static', File(static_path))
 
+    def add_loader_path(self, path):
+        self.__jinja_loader.searchpath.append(path)
 
 class DefaultRootResource(Resource):
     def __init__(self):
