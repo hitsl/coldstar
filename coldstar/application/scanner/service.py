@@ -21,9 +21,10 @@ __author__ = 'viruzzz-kun'
 class ScanProtocol(ProcessProtocol, LineReceiver):
     delimiter = '\n'
 
-    def __init__(self, dev_name, consumer):
+    def __init__(self, dev_name, consumer, options):
         self.process = None
         self.name = dev_name
+        self.scan_options = options
         self.deferred = defer.Deferred(lambda w: self.stop())
         self.consumer = consumer
 
@@ -56,7 +57,12 @@ class ScanProtocol(ProcessProtocol, LineReceiver):
         self.process = reactor.spawnProcess(
             self,
             'python',
-            ('python', os.path.join(os.path.dirname(__file__), 'worker_scan.py'), self.name),
+            ('python',
+             os.path.join(os.path.dirname(__file__), 'worker_scan.py'),
+             self.name,
+             self.scan_options['format'],
+             self.scan_options['resolution'],
+             self.scan_options['mode']),
             env=None,
             childFDs={0: 'w', 1: 'r', 2: 2}
         )
@@ -114,8 +120,8 @@ class ScanService(Service):
         self.scan_list_deferred = None
         self.cached_scan_list = ([], 0)
 
-    def getImage(self, dev_name, consumer):
-        protocol = ScanProtocol(dev_name, consumer)
+    def getImage(self, dev_name, consumer, options):
+        protocol = ScanProtocol(dev_name, consumer, options)
         protocol.deferred.addBoth(self.__promote, dev_name)
         self.scan_queues[dev_name].append(protocol)
         self.__promote(dev_name)

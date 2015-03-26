@@ -2,12 +2,11 @@
 
 import time
 
-from itsdangerous import json
 from twisted.internet import defer
 from twisted.web.resource import IResource, Resource
 from zope.interface import implementer
 
-from coldstar.lib.utils import api_method
+from coldstar.lib.utils import api_method, get_args
 
 
 __author__ = 'mmalkov'
@@ -70,7 +69,7 @@ class CastielApiResource(Resource):
         :param request:
         :return:
         """
-        j = self._get_args(request)
+        j = get_args(request)
         login = j['login']
         password = j['password']
         ato = yield self.service.acquire_token(login, password)
@@ -89,7 +88,7 @@ class CastielApiResource(Resource):
         :param request:
         :return:
         """
-        j = self._get_args(request)
+        j = get_args(request)
         result = yield self.service.release_token(j['token'].decode('hex'))
         defer.returnValue({
             'success': result,
@@ -103,7 +102,7 @@ class CastielApiResource(Resource):
         :param request:
         :return:
         """
-        j = self._get_args(request)
+        j = get_args(request)
         prolong = j.get('prolong', False)
         user_id, deadline = yield self.service.check_token(j['token'].decode('hex'), prolong)
         defer.returnValue({
@@ -121,7 +120,7 @@ class CastielApiResource(Resource):
         :param request:
         :return:
         """
-        j = self._get_args(request)
+        j = get_args(request)
         success, deadline = yield self.service.prolong_token(j['token'].decode('hex'))
         defer.returnValue({
             'success': success,
@@ -137,23 +136,9 @@ class CastielApiResource(Resource):
         :param request:
         :return:
         """
-        j = self._get_args(request)
+        j = get_args(request)
         user = yield self.service.is_valid_credentials(j['login'], j['password'])
         defer.returnValue({
             'success': True,
             'user_id': user.user_id,
         })
-
-    @staticmethod
-    def _get_args(request):
-        content = request.content
-        if content is not None:
-            try:
-                return json.loads(content.getvalue())
-            except ValueError:
-                pass
-        # This is primarily for testing purposes - to pass arguments in url
-        return dict(
-            (key, value[0])
-            for key, value in request.args.iteritems()
-        )

@@ -5,7 +5,7 @@ from twisted.python.components import registerAdapter
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import NOT_DONE_YET
 from coldstar.application.scanner.interfaces import IScanService
-from coldstar.lib.utils import api_method
+from coldstar.lib.utils import api_method, get_args
 
 __author__ = 'viruzzz-kun'
 
@@ -55,12 +55,18 @@ class ScanResource(Resource):
         defer.returnValue(result)
 
     def scan(self, request):
-        name = request.args.get('name', [None])[0]
+        j = get_args(request)
+        name = j.get('name')
+        options = {
+            'format': j.get('format', 'png') or 'png',
+            'resolution': str(j.get('resolution') or 300),
+            'mode': j.get('mode') or 'Color'
+        }
         if not name:
             request.setHeader('Content-Type', 'text/plain;charset=utf-8')
             request.setResponseCode(400)
             return 'Name should be set'
-        deferred = self.service.getImage(name, request)
+        deferred = self.service.getImage(name, request, options)
         finished = request.notifyFinish()
 
         def _finished(_):

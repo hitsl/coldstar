@@ -18,7 +18,9 @@ def make(item):
 
 
 def main():
-    json.dump(map(make, get_devices()), sys.stdout)
+    json.dump({
+        'devices': map(make, get_devices())
+    }, sys.stdout)
 
 
 if __name__ == "__main__":
