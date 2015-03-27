@@ -72,3 +72,17 @@ def safe_int(value):
         return int(value)
     except ValueError:
         return value
+
+
+def get_args(request):
+    content = request.content
+    if content is not None:
+        try:
+            return json.loads(content.getvalue())
+        except ValueError:
+            pass
+    # This is primarily for testing purposes - to pass arguments in url
+    return dict(
+        (key, value[0])
+        for key, value in request.args.iteritems()
+    )

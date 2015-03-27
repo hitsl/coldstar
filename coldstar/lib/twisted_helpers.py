@@ -83,3 +83,15 @@ class DeferredGroup(object):
     def wait(self):
         self.__check_finished()
         return self.deferred
+
+
+def chain_deferreds(host, chainee):
+    def _cb(result):
+        chainee.callback(result)
+        return result
+
+    def _eb(failure):
+        chainee.errback(failure)
+        return failure
+
+    host.addCallbacks(_cb, _eb)
