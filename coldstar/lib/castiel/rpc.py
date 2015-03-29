@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import time
+
 from itsdangerous import json
 from twisted.internet import defer
 from twisted.web.resource import IResource, Resource
@@ -22,7 +24,15 @@ class CastielApiResource(Resource):
     @api_method
     # This is custom Twisted feature. See file 'twisted.patch.diff' for details
     def render(self, request):
+        request.setHeader('Access-Control-Allow-Origin', self.service.cors_domain)
+        if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
+            # Preflight Request
+            request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            request.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+            request.setHeader('Access-Control-Max-Age', '600')
+            return ''
         request.setHeader('Content-Type', 'application/json; charset=utf-8')
+
         request.postpath = filter(None, request.postpath)
         ppl = len(request.postpath)
         if ppl == 0:
@@ -63,6 +73,7 @@ class CastielApiResource(Resource):
             'success': True,
             'token': ato.token.encode('hex'),
             'deadline': ato.deadline,
+            'ttl': ato.deadline - time.time(),
             'user_id': ato.user_id,
         })
 
@@ -88,12 +99,13 @@ class CastielApiResource(Resource):
         :return:
         """
         j = self._get_args(request)
-        # Don't implicitly prolong token
-        user_id, deadline = yield self.service.check_token(j['token'].decode('hex'), False)
+        prolong = j.get('prolong', False)
+        user_id, deadline = yield self.service.check_token(j['token'].decode('hex'), prolong)
         defer.returnValue({
             'success': True,
             'user_id': user_id,
             'deadline': deadline,
+            'ttl': deadline - time.time(),
             'token': j['token'],
         })
 
@@ -109,6 +121,7 @@ class CastielApiResource(Resource):
         defer.returnValue({
             'success': success,
             'deadline': deadline,
+            'ttl': deadline - time.time(),
             'token': j['token'],
         })
 

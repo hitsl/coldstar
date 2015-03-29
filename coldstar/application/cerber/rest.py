@@ -22,7 +22,14 @@ class ColdStarRestResource(Resource):
         Resource.__init__(self)
         self.service = coldstar_service
 
+    @api_method
     def render_GET(self, request):
+        """
+        :type request: coldstar.lib.web.wrappers.Request
+        :param request:
+        :return:
+        """
+        request.setHeader('content-type', 'application/json; charset=utf-8')
         if len(request.postpath) == 2:
             command, object_id = request.postpath
             token = request.args.get('token', [''])[0]

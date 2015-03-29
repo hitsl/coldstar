@@ -6,6 +6,7 @@ import time
 
 from twisted.application.service import Service
 from zope.interface import implementer
+from twisted.internet import defer
 
 from coldstar.lib.excs import LockNotFound
 from .interfaces import ILockService, ITmpLockService
@@ -35,20 +36,27 @@ class Lock(object):
         }
 
 
-class LockInfo(object):
-    __slots__ = ['object_id', 'acquire_time', 'locker']
+class AlreadyLocked(object):
+    __slots__ = ['object_id', 'acquire_time', 'expiration_time', 'locker']
 
     def __init__(self, lock):
         self.object_id = lock.object_id
         self.acquire_time = lock.acquire_time
         self.locker = lock.locker
+        self.expiration_time = lock.expiration_time
 
     def __json__(self):
         return {
             'object_id': self.object_id,
             'acquire': self.acquire_time,
+            'expiration_time': self.expiration_time,
+            'token': self.token,
             'locker': self.locker,
         }
+
+    @property
+    def token(self):
+        return None
 
 
 class LockReleased(object):
@@ -74,12 +82,12 @@ class ColdStarService(Service):
     def __acquire_lock(self, object_id, locker, short):
         logging.info('Acquiring lock %s', object_id)
         if object_id in self.__locks:
-            return LockInfo(self.__locks[object_id][0])
+            return defer.fail(AlreadyLocked(self.__locks[object_id][0]))
         t = time.time()
         token = uuid.uuid4().bytes
         if short:
             from twisted.internet import reactor
-            timeout = self.short_timeout if short else None
+            timeout = self.short_timeout
             lock = Lock(object_id, t, t + timeout, token, locker)
             delayed_call = reactor.callLater(timeout, self.release_lock, object_id, token)
         else:
@@ -87,7 +95,7 @@ class ColdStarService(Service):
             delayed_call = None
         self.__locks[object_id] = (lock, delayed_call)
         logging.info('Lock acquired')
-        return lock
+        return defer.succeed(lock)
 
     def acquire_lock(self, object_id, locker):
         return self.__acquire_lock(object_id, locker, False)
@@ -102,9 +110,8 @@ class ColdStarService(Service):
                 del self.__locks[object_id]
                 if delayed_call and delayed_call.active():
                     delayed_call.cancel()
-                return LockReleased(lock)
-            return LockNotFound(object_id)
-        raise LockNotFound(object_id)
+                return defer.succeed(lock)
+        return defer.fail(LockNotFound(object_id))
 
     def prolong_tmp_lock(self, object_id, token):
         if object_id in self.__locks:
@@ -113,6 +120,6 @@ class ColdStarService(Service):
                 lock.expiration_time = time.time() + self.short_timeout
                 if timeout:
                     timeout.reset(self.short_timeout)
-                return lock
-            return LockInfo(lock)
-        raise LockNotFound(object_id)
+                return defer.succeed(lock)
+            return defer.fail(AlreadyLocked(lock))
+        return defer.fail(LockNotFound(object_id))

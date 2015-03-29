@@ -3,7 +3,8 @@
 from urllib import urlencode
 
 import jinja2
-from twisted.python.components import registerAdapter
+from twisted.python.components import registerAdapter, Componentized
+from twisted.spread.flavors import Copyable
 from twisted.web.resource import Resource
 from twisted.web.server import Request, Session, Site
 from twisted.web.static import File
@@ -76,12 +77,15 @@ class TemplatedSite(Site):
 
     def __init__(self, root_resource, static_path, template_path, *args, **kwargs):
         Site.__init__(self, root_resource, *args, **kwargs)
+        jinja_loader = self.__jinja_loader = jinja2.FileSystemLoader(template_path)
         self.jinja_env = jinja2.Environment(
             extensions=['jinja2.ext.with_'],
-            loader=jinja2.FileSystemLoader(template_path),
+            loader=jinja_loader,
         )
         root_resource.putChild('static', File(static_path))
 
+    def add_loader_path(self, path):
+        self.__jinja_loader.searchpath.append(path)
 
 class DefaultRootResource(Resource):
     def __init__(self):
@@ -90,9 +94,21 @@ class DefaultRootResource(Resource):
         self.putChild('', Data(u"""
 <!DOCTYPE html>
 <html>
-<head><style>body {background: #5090F0; color: white}</style></head>
+<head><style>body { color: #fff; background-color: #027eae; font-family: "Segoe UI", "Lucida Grande", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 16px; }
+a, a:visited, a:hover { color: #fff; }</style></head>
 <body><h1>ColdStar</h1><h2>Подсистема всякой ерунды</h2>Давайте придумаем более человеческое название...</body>
 </html>""".encode('utf-8'), 'text/html; charset=utf-8'))
+
+
+class AutoRedirectResource(Resource):
+    def render(self, request):
+        """ Redirect to the resource with a trailing slash if it was omitted
+        :type request: TemplatedRequest
+        :param request:
+        :return:
+        """
+        request.redirect(request.uri + '/')
+        return ""
 
 
 registerAdapter(WebSession, Session, IWebSession)

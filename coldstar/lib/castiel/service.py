@@ -32,6 +32,8 @@ class CastielService(Service):
     expiry_time = 3600
     clean_period = 10
     check_duplicate_tokens = False
+    cors_domain = 'http://127.0.0.1:5000'
+    cookie_domain = '127.0.0.1'
 
     def __init__(self, auth):
         self.auth = auth
