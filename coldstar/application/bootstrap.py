@@ -18,7 +18,9 @@ def parse_config(fp):
     for section in cp.sections():
         if ':' in section:
             upper, lower = section.split(':', 1)
-            tmp = result[upper] = {}
+            if upper not in result:
+                result[upper] = {}
+            tmp = result[upper]
             tmp[lower] = dict((k, safe_int(v)) for k, v in cp.items(section))
         else:
             result[section] = dict((k, safe_int(v)) for k, v in cp.items(section))
@@ -31,7 +33,8 @@ def make_config(filename=None):
         with open('default.conf') as cfg_file:
             config.update(parse_config(cfg_file))
     except (IOError, OSError):
-        pass
+        print('CAUTION! Cannot load default config!')
+        print('Current directory = %s' % os.getcwd())
 
     if filename:
         try:
@@ -49,14 +52,14 @@ class RootService(MultiService):
         from coldstar.lib.web.wrappers import TemplatedSite, DefaultRootResource
         from coldstar.lib.proxied_logger import proxiedLogFormatter
 
-        config = make_config(arg_config)
+        config = make_config(arg_config['config'])
 
         self.root_resource = DefaultRootResource()
         current_dir = os.path.dirname(__file__)
         self.site = TemplatedSite(
             self.root_resource,
-            os.path.join(current_dir, 'web', 'static'),
-            os.path.join(current_dir, 'web', 'templates'),
+            static_path=os.path.join(current_dir, 'web', 'static'),
+            template_path=os.path.join(current_dir, 'web', 'templates'),
             logFormatter=proxiedLogFormatter)
 
         self.web_service = TCPServer(
@@ -66,13 +69,13 @@ class RootService(MultiService):
         )
         self.web_service.setServiceParent(self)
 
-        self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
+        # self.db_service = self.bootstrap_database(safe_traverse(config, 'database', default={}))
         # self.cerber_service = self.bootstrap_cerber(safe_traverse(config, 'module', 'cerber', default={}))
         self.castiel_service = self.bootstrap_castiel(safe_traverse(config, 'module', 'castiel', default={}))
-        self.sage_service = self.bootstrap_sage(safe_traverse(config, 'module', 'sage', default={}))
-        self.counter_service = self.bootstrap_counter(safe_traverse(config, 'module', 'counter', default={}))
-        self.ws_factory = self.bootstrap_websocket(safe_traverse(config, 'websocket', default={}))
-        self.tracker_service = self.bootstrap_tracker(safe_traverse(config, 'tracker', default={}))
+        # self.sage_service = self.bootstrap_sage(safe_traverse(config, 'module', 'sage', default={}))
+        # self.counter_service = self.bootstrap_counter(safe_traverse(config, 'module', 'counter', default={}))
+        # self.ws_factory = self.bootstrap_websocket(safe_traverse(config, 'websocket', default={}))
+        self.tracker_service = self.bootstrap_tracker(safe_traverse(config, 'module', 'tracker', default={}))
 
     def bootstrap_tracker(self, config):
         from coldstar.application.tracker.service import TorrentRegistry
@@ -141,11 +144,10 @@ class RootService(MultiService):
         return service
 
     def bootstrap_castiel(self, config):
-        from coldstar.application.castiel import auth
+        from coldstar.application.castiel.auth_svn import FileAuthenticator
         from coldstar.lib.castiel.interfaces import ICasService
-        from coldstar.lib.auth.interfaces import IAuthenticator
 
-        auth = IAuthenticator(self.db_service)
+        auth = FileAuthenticator(safe_traverse(config, 'auth_file', default='/srv/www/moonworks.ru/passwd'))
         service = ICasService(auth)
         service.expiry_time = int(safe_traverse(config, 'expiry_time', default=3600))
         service.clean_period = int(safe_traverse(config, 'clean_period', default=10))
@@ -153,6 +155,8 @@ class RootService(MultiService):
         service.cors_domain = safe_traverse(config, 'cors_domain', default='http://127.0.0.1:5000')
         service.cookie_domain = safe_traverse(config, 'cookie_domain', default='127.0.0.1')
         service.setServiceParent(self)
+
+        self.site.castiel = service
 
         resource = IResource(service)
         self.root_resource.putChild('cas', resource)

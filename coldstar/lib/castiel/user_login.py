@@ -70,7 +70,7 @@ class CastielLoginResource(Resource):
             token_txt = ato.token.encode('hex')
             request.addCookie(
                 self.cookie_name, token_txt, domain=self.service.cookie_domain,
-                path='/', comment='Castiel Auth Cookie'
+                path='/', comment='Castiel Auth Cookie', secure=True
             )
             fm.back = None
             defer.returnValue(redirectTo(back, request))

@@ -3,8 +3,10 @@
 from urllib import urlencode
 
 import jinja2
+from blinker import signal
+from twisted.internet import defer
+from twisted.python import components
 from twisted.python.components import registerAdapter, Componentized
-from twisted.spread.flavors import Copyable
 from twisted.web.resource import Resource
 from twisted.web.server import Request, Session, Site
 from twisted.web.static import File
@@ -38,7 +40,7 @@ class TemplatedRequest(Request):
         return template.render(context).encode('utf-8')
 
     def rememberAppPath(self):
-        self.currentAppPath = '/'.join(self.prepath)
+        self.currentAppPath = '/' + '/'.join(self.prepath)
 
     def __url_for(self, endpoint, **kwargs):
         result = '/'
@@ -51,15 +53,23 @@ class TemplatedRequest(Request):
             filename = kwargs.pop('filename')
             if not filename:
                 raise RuntimeError('filename')
-            result = '/%s/%s' % (self.currentAppPath, filename)
+            result = '%s/%s' % (self.currentAppPath, filename)
         if kwargs:
             result = '%s?%s' % (result, urlencode(kwargs.iteritems()))
         return result
 
+    def get_auth(self):
+        cas = getattr(self.session.site, 'castiel', None)
+        if not cas:
+            return
+        return cas.get_user_quick()
+
 
 @implementer(IWebSession)
-class WebSession(object):
+class WebSession(components.Componentized):
     def __init__(self, session):
+        Componentized.__init__(self)
+        self.session = session
         self.flashed_messages = []
         self.back = None
 
@@ -75,17 +85,31 @@ class WebSession(object):
 class TemplatedSite(Site):
     requestFactory = TemplatedRequest
 
-    def __init__(self, root_resource, static_path, template_path, *args, **kwargs):
+    def __init__(self, root_resource, *args, **kwargs):
+        """
+        :param castiel_service:
+        :param static_path:
+        :param template_path:
+        """
+        self.castiel = kwargs.pop('castiel_service', None)
+
+        static_path = kwargs.pop('static_path', None)
+        if static_path:
+            root_resource.putChild('static', File(static_path))
+
+        template_path = kwargs.pop('template_path', None)
+        if template_path:
+            self.__jinja_loader = jinja2.FileSystemLoader(template_path)
+            self.jinja_env = jinja2.Environment(
+                extensions=['jinja2.ext.with_'],
+                loader=self.__jinja_loader,
+            )
+
         Site.__init__(self, root_resource, *args, **kwargs)
-        jinja_loader = self.__jinja_loader = jinja2.FileSystemLoader(template_path)
-        self.jinja_env = jinja2.Environment(
-            extensions=['jinja2.ext.with_'],
-            loader=jinja_loader,
-        )
-        root_resource.putChild('static', File(static_path))
 
     def add_loader_path(self, path):
         self.__jinja_loader.searchpath.append(path)
+
 
 class DefaultRootResource(Resource):
     def __init__(self):

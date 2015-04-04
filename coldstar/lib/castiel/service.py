@@ -2,7 +2,10 @@
 import os
 import time
 
-from twisted.python import failure
+import msgpack
+import blinker
+
+from twisted.python import failure, components
 from twisted.python.components import registerAdapter
 from twisted.application.service import Service
 from twisted.internet import defer
@@ -27,6 +30,10 @@ class AuthTokenObject(object):
         self.deadline = deadline
 
 
+class CastielUserRegistry(dict, components.Componentized):
+    pass
+
+
 @implementer(ICasService)
 class CastielService(Service):
     expiry_time = 3600
@@ -37,7 +44,7 @@ class CastielService(Service):
 
     def __init__(self, auth):
         self.auth = auth
-        self.tokens = {}
+        self.tokens = CastielUserRegistry()
         self.expired_cleaner = None
 
     def acquire_token(self, login, password):
@@ -54,14 +61,22 @@ class CastielService(Service):
 
             deadline = ctime + self.expiry_time
             ato = self.tokens[token] = AuthTokenObject(user_id, deadline, token)  # (deadline, user_id)
+            blinker.signal('coldstar.castiel.token.acquired').send(self, token=token, ato=ato)
             return ato
 
+        def _eb(f):
+            blinker.signal('coldstar.castiel.token.invalid_credentials').send(self, login=login, password=password)
+            return f
+
         d = self.auth.get_user(login, password)
-        d.addCallback(_cb)
+        d.addCallbacks(_cb, _eb)
         return d
 
     def release_token(self, token):
         if token in self.tokens:
+            ato = self.tokens[token]
+            blinker.signal('coldstar.castiel.token.expired').send(self, token=token, ato=ato)
+            blinker.signal('coldstar.castiel.token.released').send(self, token=token, ato=ato)
             del self.tokens[token]
             return defer.succeed(True)
         return failure.Failure(EExpiredToken(token))
@@ -92,15 +107,39 @@ class CastielService(Service):
         for token, ato in self.tokens.items():
             if ato.deadline < now:
                 print "token", token.encode('hex'), "expired"
+                blinker.signal('coldstar.castiel.token.expired').send(self, token=token, ato=ato)
                 del self.tokens[token]
 
+    def get_user_quick(self, token):
+        if token not in self.tokens:
+            return None
+        ato = self.tokens[token]
+        if ato.deadline < time.time():
+            return None
+        return ato
+
     def startService(self):
-        Service.startService(self)
+        try:
+            with open('tokens.msgpack', 'rb') as f:
+                self.tokens = dict(
+                    (i[2], AuthTokenObject(i[0], i[1], i[2]))
+                    for i in msgpack.unpack(f)
+                )
+        except (IOError, OSError, msgpack.UnpackException, msgpack.UnpackValueError):
+            pass
         self.expired_cleaner = LoopingCall(self._clean_expired)
         self.expired_cleaner.start(self.clean_period)
+        Service.startService(self)
+        blinker.signal('coldstar.castiel.service.started').send(self)
 
     def stopService(self):
-        Service.stopService(self)
         self.expired_cleaner.stop()
+        with open('tokens.msgpack', 'wb') as f:
+            msgpack.pack([
+                [obj.user_id, obj.deadline, token]
+                for token, obj in self.tokens.iteritems()
+            ], f)
+        Service.stopService(self)
+        blinker.signal('coldstar.castiel.service.stopped').send(self)
 
 registerAdapter(CastielService, IAuthenticator, ICasService)
