@@ -140,7 +140,7 @@ class CastielService(Service):
         ato = self.tokens[token]
         if ato.deadline < time.time():
             return None
-        return ato
+        return ato.object
 
     def startService(self):
         try:

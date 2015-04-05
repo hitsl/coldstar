@@ -2,10 +2,9 @@
 # -*- coding: utf-8 -*-
 from urllib import urlencode
 
+import blinker
 import jinja2
-from blinker import signal
 from jinja2.exceptions import TemplateNotFound
-from twisted.internet import defer
 from twisted.python import components
 from twisted.python.components import registerAdapter, Componentized
 from twisted.web.resource import Resource
@@ -18,6 +17,8 @@ from .interfaces import ITemplatedSite, IWebSession, ITemplatedRequest
 
 __author__ = 'viruzzz-kun'
 __created__ = '08.02.2015'
+
+cas_boot = blinker.signal('coldstar.lib.castiel.boot')
 
 
 @implementer(ITemplatedRequest)
@@ -63,7 +64,7 @@ class TemplatedRequest(Request):
         return result
 
     def get_auth(self):
-        cas = getattr(self.session.site, 'castiel', None)
+        cas = getattr(self.session.site, 'cas', None)
         if not cas:
             return
         return cas.get_user_quick()
@@ -113,7 +114,12 @@ class TemplatedSite(Site):
                 loader=self.__jinja_loader,
             )
 
+        self.cas = None
         Site.__init__(self, root_resource, *args, **kwargs)
+        cas_boot.connect(self.cas_boot)
+
+    def cas_boot(self, sender):
+        self.cas = sender
 
     def add_loader_path(self, path):
         self.__jinja_loader.searchpath.append(path)
