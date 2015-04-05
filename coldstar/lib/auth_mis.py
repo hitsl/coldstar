@@ -32,11 +32,26 @@ class Person(Base):
 @implementer(IAuthObject)
 class MisAuthObject(object):
     __slots__ = ['user_id', 'login', 'groups']
+    msgpack = 1
 
-    def __init__(self, person):
-        self.user_id = person.id
-        self.login = person.login
+    def __init__(self, person=None):
+        if person:
+            self.user_id = person.id
+            self.login = person.login
+        else:
+            self.user_id = None
+            self.login = None
         self.groups = []
+
+    def __getstate__(self):
+        return [
+            self.user_id,
+            self.login,
+            self.groups,
+        ]
+
+    def __setstate__(self, state):
+        self.user_id, self.login, self.groups = state
 
 
 @implementer(IAuthenticator)

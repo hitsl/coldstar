@@ -23,12 +23,22 @@ self_boot = blinker.signal('coldstar.lib.auth.boot')
 @implementer(IAuthObject)
 class SvnAuthObject(object):
     __slots__ = ['user_id', 'login', 'groups']
+    msgpack = 1
 
-    def __init__(self, login):
+    def __init__(self, login=None):
         self.user_id = login
         self.login = login
-        self.groups = set()
+        self.groups = []
 
+    def __getstate__(self):
+        return [
+            self.user_id,
+            self.login,
+            self.groups,
+        ]
+
+    def __setstate__(self, state):
+        self.user_id, self.login, self.groups = state
 
 @implementer(IAuthenticator)
 class SvnAuthenticator(object):
@@ -61,7 +71,8 @@ class SvnAuthenticator(object):
                 for group_name, group_users in authz.items('groups'):
                     names = [u.strip() for u in group_users.split(',')]
                     if login in names:
-                        obj.groups.add(group_name)
+                        obj.groups.append(group_name)
+                obj.groups = list(set(obj.groups))
             return defer.succeed(obj)
         except (KeyError, NoOptionError):
             pass
