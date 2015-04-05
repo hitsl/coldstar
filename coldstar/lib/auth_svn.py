@@ -3,23 +3,42 @@
 from hashlib import md5
 
 from ConfigParser import ConfigParser, NoOptionError
+import blinker
 from twisted.internet import defer
 from twisted.python import failure
 
 from zope.interface import implementer
-from coldstar.lib.auth.exceptions import EInvalidCredentials
-from coldstar.lib.auth.interfaces import IAuthenticator, IAuthObject
+from coldstar.lib.castiel.exceptions import EInvalidCredentials
+from coldstar.lib.castiel.interfaces import IAuthenticator, IAuthObject
 
 
 __author__ = 'viruzzz-kun'
 __created__ = '08.02.2015'
 
 
+boot = blinker.signal('coldstar.boot')
+self_boot = blinker.signal('coldstar.lib.auth.boot')
+
+
+@implementer(IAuthObject)
+class SvnAuthObject(object):
+    __slots__ = ['user_id', 'login', 'groups']
+
+    def __init__(self, login):
+        self.user_id = login
+        self.login = login
+        self.groups = set()
+
+
 @implementer(IAuthenticator)
-class FileAuthenticator(object):
+class SvnAuthenticator(object):
     def __init__(self, filename, authz=None):
         self.filename = filename
         self.authz = authz
+        boot.connect(self.bootstrap_svn_auth)
+
+    def bootstrap_svn_auth(self, root):
+        self_boot.send(self)
 
     def get_user(self, login, password):
         if isinstance(password, unicode):
@@ -34,13 +53,13 @@ class FileAuthenticator(object):
         try:
             if cp.get('users', login, None) != pwd:
                 raise KeyError
-            obj = FileAuthObject(login)
+            obj = SvnAuthObject(login)
             if self.authz:
                 with open(self.authz, 'rt') as f:
                     authz = ConfigParser()
                     authz.readfp(f)
                 for group_name, group_users in authz.items('groups'):
-                    names = map(unicode.strip, group_users.split(','))
+                    names = [u.strip() for u in group_users.split(',')]
                     if login in names:
                         obj.groups.add(group_name)
             return defer.succeed(obj)
@@ -49,11 +68,5 @@ class FileAuthenticator(object):
         return defer.fail(failure.Failure(EInvalidCredentials()))
 
 
-@implementer(IAuthObject)
-class FileAuthObject(object):
-    __slots__ = ['user_id', 'login', 'groups']
-
-    def __init__(self, login):
-        self.user_id = login
-        self.login = login
-        self.groups = set()
+def make(config):
+    return SvnAuthenticator(config['passwd'], config.get('authz', None))

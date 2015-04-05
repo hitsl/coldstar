@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from ConfigParser import ConfigParser
-import os
 
+import os
 from twisted.web.resource import IResource
 from twisted.application.service import MultiService
 
@@ -144,10 +144,10 @@ class RootService(MultiService):
         return service
 
     def bootstrap_castiel(self, config):
-        from coldstar.application.castiel.auth_svn import FileAuthenticator
+        from coldstar.lib.auth_svn import SvnAuthenticator
         from coldstar.lib.castiel.interfaces import ICasService
 
-        auth = FileAuthenticator(safe_traverse(config, 'auth_file', default='/srv/www/moonworks.ru/passwd'))
+        auth = SvnAuthenticator(safe_traverse(config, 'auth_file', default='/srv/www/moonworks.ru/passwd'))
         service = ICasService(auth)
         service.expiry_time = int(safe_traverse(config, 'expiry_time', default=3600))
         service.clean_period = int(safe_traverse(config, 'clean_period', default=10))

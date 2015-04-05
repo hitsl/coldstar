@@ -15,3 +15,8 @@ class EExpiredToken(SerializableBaseException):
 class ETokenAlreadyAcquired(SerializableBaseException):
     def __init__(self, user_id):
         self.message = 'Token for user id = %s already taken' % user_id
+
+
+class EInvalidCredentials(SerializableBaseException):
+    def __init__(self):
+        self.message = 'Incorrect login or password'

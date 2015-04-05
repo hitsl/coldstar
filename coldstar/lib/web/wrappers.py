@@ -4,6 +4,7 @@ from urllib import urlencode
 
 import jinja2
 from blinker import signal
+from jinja2.exceptions import TemplateNotFound
 from twisted.internet import defer
 from twisted.python import components
 from twisted.python.components import registerAdapter, Componentized
@@ -36,8 +37,11 @@ class TemplatedRequest(Request):
         }
         context.update(kwargs)
 
-        template = self.site.jinja_env.get_template(name)
-        return template.render(context).encode('utf-8')
+        try:
+            template = self.site.jinja_env.get_template(name)
+            return template.render(context).encode('utf-8')
+        except TemplateNotFound as e:
+            print('Template not found filename="%s", name="%s"' % (e.filename, e.name))
 
     def rememberAppPath(self):
         self.currentAppPath = '/' + '/'.join(self.prepath)
@@ -91,6 +95,10 @@ class TemplatedSite(Site):
         :param static_path:
         :param template_path:
         """
+
+        import pprint
+        pprint.pprint(kwargs)
+
         self.castiel = kwargs.pop('castiel_service', None)
 
         static_path = kwargs.pop('static_path', None)

@@ -1,23 +1,27 @@
 # -*- coding: utf-8 -*-
-import os
 import time
 
+import os
 import msgpack
 import blinker
-
 from twisted.python import failure, components
 from twisted.python.components import registerAdapter
 from twisted.application.service import Service
 from twisted.internet import defer
 from twisted.internet.task import LoopingCall
-from zope.interface import implementer
 
-from coldstar.lib.auth.interfaces import IAuthenticator
+from zope.interface import implementer
+from coldstar.lib.castiel.interfaces import IAuthenticator
 from .exceptions import EExpiredToken, ETokenAlreadyAcquired
 from .interfaces import ICasService, IAuthTokenObject
 
 
 __author__ = 'mmalkov'
+
+
+boot = blinker.signal('coldstar.boot')
+cas_boot = blinker.signal('coldstar.lib.castiel.boot')
+auth_boot = blinker.signal('coldstar.lib.auth.boot')
 
 
 @implementer(IAuthTokenObject)
@@ -42,10 +46,12 @@ class CastielService(Service):
     cors_domain = 'http://127.0.0.1:5000'
     cookie_domain = '127.0.0.1'
 
-    def __init__(self, auth):
-        self.auth = auth
+    def __init__(self):
+        self.auth = None
         self.tokens = CastielUserRegistry()
         self.expired_cleaner = None
+        boot.connect(self.bootstrap_cas)
+        auth_boot.connect(self.auth_boot)
 
     def acquire_token(self, login, password):
         def _cb(user):
@@ -141,5 +147,12 @@ class CastielService(Service):
             ], f)
         Service.stopService(self)
         blinker.signal('coldstar.castiel.service.stopped').send(self)
+
+    def bootstrap_cas(self, root):
+        self.setServiceParent(root)
+        cas_boot.send(self)
+
+    def auth_boot(self, sender):
+        self.auth = sender
 
 registerAdapter(CastielService, IAuthenticator, ICasService)

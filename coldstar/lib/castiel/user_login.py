@@ -9,7 +9,7 @@ from zope.interface import implementer
 from .exceptions import EExpiredToken, ETokenAlreadyAcquired
 from coldstar.lib.excs import SerializableBaseException
 from coldstar.lib.web.interfaces import IWebSession
-from coldstar.lib.auth.exceptions import EInvalidCredentials
+from coldstar.lib.castiel.exceptions import EInvalidCredentials
 
 
 __author__ = 'viruzzz-kun'

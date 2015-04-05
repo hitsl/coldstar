@@ -1,23 +1,29 @@
 # -*- coding: utf-8 -*-
 import contextlib
+import blinker
 
 import sqlalchemy
 import sqlalchemy.orm
 from twisted.application.service import Service
 from zope.interface.declarations import implementer
 
-from coldstar.lib.db.interfaces import IDataBaseService
+from .interfaces import IDataBaseService
 
 
 __author__ = 'mmalkov'
 
 
+boot = blinker.signal('coldstar.boot')
+self_boot = blinker.signal('coldstar.lib.db.boot')
+
+
 @implementer(IDataBaseService)
 class DataBaseService(Service):
-    def __init__(self, url):
-        self.url = url
+    def __init__(self, config):
+        self.url = config['url']
         self.db = None
         self.session = None
+        boot.connect(self.bootstrap_db)
 
     def startService(self):
         Service.startService(self)
@@ -47,3 +53,6 @@ class DataBaseService(Service):
         finally:
             session.close()
 
+    def bootstrap_db(self, root):
+        self.setServiceParent(root)
+        self_boot.send(self)

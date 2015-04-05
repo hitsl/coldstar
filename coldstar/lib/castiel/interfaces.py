@@ -46,3 +46,19 @@ class IAuthTokenObject(Interface):
     user_id = Attribute('user_id', 'User identifier')
     token = Attribute('token', 'Unique authentication token')
     deadline = Attribute('deadline', 'Time at which token will expire')
+
+
+class IAuthenticator(Interface):
+    def get_user(self, login, password):
+        """
+        Get authentication object
+        :param login: user login
+        :param password: user password
+        :return: Deferred which fires either object or failure
+        """
+
+
+class IAuthObject(Interface):
+    user_id = Attribute('user_id', 'User unique id')
+    login = Attribute('login', 'User login')
+    groups = Attribute('groups', 'User groups or roles')
