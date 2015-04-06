@@ -2,6 +2,7 @@
 
 import time
 
+from itsdangerous import json
 from twisted.internet import defer
 from twisted.web.resource import IResource, Resource
 from zope.interface import implementer
@@ -28,7 +29,7 @@ class CastielApiResource(Resource):
         :param request:
         :return:
         """
-        request.setHeader('Access-Control-Allow-Origin', request.site.cors_domain)
+        request.setHeader('Access-Control-Allow-Origin', self.service.cors_domain)
         if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
             # Preflight Request
             request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')

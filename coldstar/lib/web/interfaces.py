@@ -35,3 +35,20 @@ class IWebSession(Interface):
 
 class ITemplatedSite(Interface):
     jinja_env = Attribute('jinja_env', 'Jinja Environment')
+
+
+class ITemplateHelper(Interface):
+    def render_template(self, template_name, context):
+        """
+        :type template_name: str|unicode
+        :param template_name: Name of template to be rendered
+        :param context: Context
+        :return:
+        """
+
+    def add_loader_path(self, path):
+        """
+        Add local directory to loader paths
+        :param path: directory
+        :return:
+        """

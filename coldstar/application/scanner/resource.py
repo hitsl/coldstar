@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import blinker
 from twisted.internet import defer
 from twisted.internet.defer import CancelledError
 from twisted.python.components import registerAdapter
@@ -13,9 +14,14 @@ __author__ = 'viruzzz-kun'
 class ScanResource(Resource):
     isLeaf = 1
 
-    def __init__(self, service):
+    def __init__(self):
         Resource.__init__(self)
-        self.service = service
+        self.service = None
+        self.cas_service = None
+        blinker.signal('coldstar.boot').connect(self.bootstrap)
+        blinker.signal('coldstar.application.scanner.boot').connect(self.service_boot)
+        blinker.signal('coldstar.lib.web.boot').connect(self.web_boot)
+        blinker.signal('coldstar.lib.castiel.boot').connect(self.cas_boot)
 
     def render(self, request):
         """
@@ -23,7 +29,7 @@ class ScanResource(Resource):
         :param request:
         :return:
         """
-        request.setHeader('Access-Control-Allow-Origin', request.site.cors_domain)
+        request.setHeader('Access-Control-Allow-Origin', self.cas_service.cors_domain)
         if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
             # Preflight Request
             request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -87,5 +93,23 @@ class ScanResource(Resource):
         finished.addErrback(_finished)
         return NOT_DONE_YET
 
+    def bootstrap(self, root):
+        print('Scan Web: initialized')
+        blinker.signal('coldstar.application.scanner.resource.boot').send(self)
+
+    def service_boot(self, service):
+        self.service = service
+        print('Scan Web: ScanService connected')
+
+    def cas_boot(self, sender):
+        self.cas_service = sender
+        print('Scanner Web: Cas connected')
+
+    def web_boot(self, sender):
+        sender.root_resource.putChild('scan', self)
+
 
 registerAdapter(ScanResource, IScanService, IResource)
+
+def make(config):
+    return ScanResource()

@@ -27,9 +27,8 @@ class MyServiceMaker(object):
     options = Options
 
     def makeService(self, config):
-        import coldstar.application.bootstrap
-        return coldstar.application.bootstrap.RootService(config)
-
+        from coldstar.lib.pluginmanager.service import Application
+        return Application(config)
 
 
 serviceMaker = MyServiceMaker()

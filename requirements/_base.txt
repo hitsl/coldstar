@@ -5,3 +5,4 @@ sqlalchemy
 itsdangerous
 Pillow
 pyinsane
+msgpack-python

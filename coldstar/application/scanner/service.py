@@ -3,6 +3,7 @@ import collections
 import json
 import os
 import time
+import blinker
 
 from twisted.application.service import Service
 from twisted.internet import defer
@@ -119,6 +120,7 @@ class ScanService(Service):
         self.scan_currents = {}
         self.scan_list_deferred = None
         self.cached_scan_list = ([], 0)
+        blinker.signal('coldstar.boot').connect(self.bootstrap)
 
     def getImage(self, dev_name, consumer, options):
         protocol = ScanProtocol(dev_name, consumer, options)
@@ -165,3 +167,7 @@ class ScanService(Service):
             self.scan_currents[name] = n
             if n:
                 reactor.callLater(0, n.start)
+
+    def bootstrap(self, root):
+        self.setServiceParent(root)
+        blinker.signal('coldstar.application.scanner.boot').send(self)
