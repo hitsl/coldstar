@@ -29,9 +29,9 @@
         </div>
         <div class="form-group">
             {%- if request.user_agent.platform == 'macos' and request.user_agent.browser in ('chrome', 'webkit', 'google') -%}
-                <input type="text" value="" title="Необходимо заполнить это поле!" required="required" placeholder="Пароль" name="password" id="password" class="form-control" style="-webkit-text-security: disc;">
+                <input type="text" value="" title="Необходимо заполнить это поле!" required="required" placeholder="Пароль" name="password" id="password" class="form-control" style="-webkit-text-security: disc;" autocomplete="off">
             {%- else -%}
-                <input type="password" value="" title="Необходимо заполнить это поле!" required="required" placeholder="Пароль" name="password" id="password" class="form-control">
+                <input type="password" value="" title="Необходимо заполнить это поле!" required="required" placeholder="Пароль" name="password" id="password" autocomplete="off" class="form-control">
             {%- endif -%}
         </div>
 
