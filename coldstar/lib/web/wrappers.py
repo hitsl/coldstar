@@ -69,6 +69,13 @@ class TemplatedRequest(Request):
             return
         return cas.get_user_quick()
 
+    @property
+    def user_agent(self):
+        if not hasattr(self, '__user_agent'):
+            from .useragents import UserAgent
+            self.__user_agent = UserAgent(self.getHeader('User-Agent'))
+        return self.__user_agent
+
 
 @implementer(IWebSession)
 class WebSession(components.Componentized):
