@@ -13,19 +13,28 @@ __created__ = '04.04.2015'
 boot = blinker.signal('coldstar.boot')
 
 
+def set_value(d, path, items):
+    if not path:
+        raise Exception('WTF')
+    while len(path) > 1:
+        key, path = path[0], path[1:]
+        if key not in d:
+            d[key] = {}
+        d = d[key]
+    key = path[0]
+    if key not in d:
+        d[key] = {}
+    d[key].update((k, safe_int(v)) for k, v in items)
+    return
+
+
 def parse_config(fp):
     cp = ConfigParser()
     cp.readfp(fp)
     result = {}
     for section in cp.sections():
-        if ':' in section:
-            upper, lower = section.split(':', 1)
-            if upper not in result:
-                result[upper] = {}
-            tmp = result[upper]
-            tmp[lower] = dict((k, safe_int(v)) for k, v in cp.items(section))
-        else:
-            result[section] = dict((k, safe_int(v)) for k, v in cp.items(section))
+        path = section.split(':')
+        set_value(result, path, cp.items(section))
     return result
 
 

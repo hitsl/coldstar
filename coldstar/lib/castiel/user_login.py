@@ -19,15 +19,20 @@ __created__ = '08.02.2015'
 @implementer(IResource)
 class CastielLoginResource(Resource):
     isLeaf = True
-    cookie_name = 'CastielAuthToken'
 
-    def __init__(self, castiel_service):
+    def __init__(self, castiel_service, web_service):
         Resource.__init__(self)
         self.service = castiel_service
+        self.web_service = web_service
 
     @defer.inlineCallbacks
     def render_GET(self, request):
-        token = request.getCookie(self.cookie_name)
+        """
+        :type request: coldstar.lib.web.wrappers.TemplatedRequest
+        :param request:
+        :return:
+        """
+        token = request.getCookie(self.web_service.cookie_name)
         session = request.getSession()
         fm = IWebSession(session)
         if 'back' in request.args:
@@ -49,6 +54,11 @@ class CastielLoginResource(Resource):
 
     @defer.inlineCallbacks
     def render_POST(self, request):
+        """
+        :type request: coldstar.lib.web.wrappers.TemplatedRequest
+        :param request:
+        :return:
+        """
         session = request.getSession()
         fm = IWebSession(session)
         back = fm.back or request.args.get('back', ['/'])[0]
@@ -68,19 +78,14 @@ class CastielLoginResource(Resource):
             defer.returnValue(redirectTo(back, request))
         else:
             token_txt = ato.token.encode('hex')
+            source_domain = request.getHeader('Host').split(':')[0]
+            cookie_domain = self.web_service.get_cookie_domain(source_domain)
             request.addCookie(
-                self.cookie_name, token_txt, domain=self.service.cookie_domain,
+                self.web_service.cookie_name, token_txt, domain=cookie_domain,
                 path='/', comment='Castiel Auth Cookie'
             )
             fm.back = None
             defer.returnValue(redirectTo(back, request))
-
-    def _get_hex_token(self, request):
-        token = request.getCookie(self.cookie_name)
-        if token:
-            print(token)
-            return token.decode('hex')
-        raise ENoToken()
 
 
 class ENoToken(SerializableBaseException):

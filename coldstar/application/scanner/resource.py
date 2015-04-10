@@ -14,14 +14,13 @@ __author__ = 'viruzzz-kun'
 class ScanResource(Resource):
     isLeaf = 1
 
-    def __init__(self):
+    def __init__(self, config):
         Resource.__init__(self)
         self.service = None
-        self.cas_service = None
+        self.cors_domain = config.get('cors_domain', '*')
         blinker.signal('coldstar.boot').connect(self.bootstrap)
         blinker.signal('coldstar.application.scanner.boot').connect(self.service_boot)
         blinker.signal('coldstar.lib.web.boot').connect(self.web_boot)
-        blinker.signal('coldstar.lib.castiel.boot').connect(self.cas_boot)
 
     def render(self, request):
         """
@@ -29,7 +28,7 @@ class ScanResource(Resource):
         :param request:
         :return:
         """
-        request.setHeader('Access-Control-Allow-Origin', self.cas_service.cors_domain)
+        request.setHeader('Access-Control-Allow-Origin', self.cors_domain)
         if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
             # Preflight Request
             request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -101,15 +100,12 @@ class ScanResource(Resource):
         self.service = service
         print('Scan Web: ScanService connected')
 
-    def cas_boot(self, sender):
-        self.cas_service = sender
-        print('Scanner Web: Cas connected')
-
     def web_boot(self, sender):
         sender.root_resource.putChild('scan', self)
 
 
 registerAdapter(ScanResource, IScanService, IResource)
 
+
 def make(config):
-    return ScanResource()
+    return ScanResource(config)

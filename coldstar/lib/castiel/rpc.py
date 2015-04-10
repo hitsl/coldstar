@@ -17,9 +17,10 @@ __author__ = 'mmalkov'
 class CastielApiResource(Resource):
     isLeaf = True
 
-    def __init__(self, castiel_service):
+    def __init__(self, castiel_service, web_service):
         Resource.__init__(self)
         self.service = castiel_service
+        self.web_service = web_service
 
     @api_method
     # This is custom Twisted feature. See file 'twisted.patch.diff' for details
@@ -29,7 +30,7 @@ class CastielApiResource(Resource):
         :param request:
         :return:
         """
-        request.setHeader('Access-Control-Allow-Origin', self.service.cors_domain)
+        request.setHeader('Access-Control-Allow-Origin', self.web_service.cors_domain)
         if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
             # Preflight Request
             request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
