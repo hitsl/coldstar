@@ -16,7 +16,8 @@ class WebService(object):
         import os
         from coldstar.lib.utils import safe_traverse
 
-        from twisted.application.internet import TCPServer
+        from twisted.internet import reactor
+        from twisted.application import strports
         from coldstar.lib.web.wrappers import TemplatedSite, DefaultRootResource
         from coldstar.lib.proxied_logger import proxiedLogFormatter
 
@@ -28,11 +29,12 @@ class WebService(object):
             template_path=safe_traverse(config, 'template-path', default=os.path.join(current_dir, 'web', 'templates')),
             logFormatter=proxiedLogFormatter)
 
-        service = TCPServer(
-            int(safe_traverse(config, 'port', default=5000)),
-            site,
-            interface=safe_traverse(config, 'host', default='127.0.0.1')
-        )
+        description = config.get('strport', 'tcp:%s:interface=%s' % (
+            config.get('port', 5000),
+            config.get('host', '127.0.0.1')
+        ))
+
+        service = strports.service(description, site, reactor=reactor)
 
         self.root_resource = root_resource
         self.site = site
