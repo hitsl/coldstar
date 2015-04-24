@@ -84,7 +84,8 @@ class Application(MultiService):
             self.modules.append(make_plugin(name, cfg))
 
     def startService(self):
+        from twisted.python.log import callWithContext
         print('...Booting...')
-        boot.send(self)
+        callWithContext({"system": "Bootstrap"}, boot.send, self)
         MultiService.startService(self)
 
