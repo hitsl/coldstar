@@ -57,6 +57,8 @@ class KalamariEventSourceResource(Resource):
         :param request:
         :return:
         """
+        pp = filter(None, request.postpath)
+
         def push(uri, data):
             request.write('event: %s\n' % uri)
             request.write('\n'.join(map(lambda x: 'data: %s\n' % x, as_json(data).splitlines())))
@@ -64,16 +66,25 @@ class KalamariEventSourceResource(Resource):
 
         def onFinish(result):
             self.service.unsubscribe(None, push)
+            for uri, p in uri_dict.iteritems():
+                self.service.unsubscribe(uri, p)
             if not isinstance(result, Failure):
                 return result
 
-        uris = request.args.get('uri', [])
+        def register():
+            if len(pp) == 1 and pp[0] == '*':
+                self.service.subscribe(None, push)
+            for uri, p in uri_dict.iteritems():
+                self.service.subscribe(uri, p)
+
+        uri_dict = dict(
+            (uri, partial(push, uri))
+            for uri in request.args.get('uri', [])
+        )
 
         request.notifyFinish().addBoth(onFinish)
 
-        self.service.subscribe(None, push)
-        for uri in uris:
-            self.service.subscribe(uri, partial(push, uri))
+        register()
         request.setHeader('Content-Type', 'text/event-stream')
         request.write('')
         return NOT_DONE_YET

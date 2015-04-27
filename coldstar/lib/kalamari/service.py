@@ -11,6 +11,8 @@ __author__ = 'viruzzz-kun'
 boot = blinker.signal('coldstar.boot')
 boot_kalamari = blinker.signal('coldstar.lib.kalamari.boot')
 
+broadcast_kalamari = blinker.signal('coldstar.lib.kalamari:broadcast')
+
 
 class KalamariService(Service):
     def __init__(self, config):
@@ -18,6 +20,7 @@ class KalamariService(Service):
         self.subscriptions = collections.defaultdict(WeakSet)
         self.eager_subs = WeakSet()
         boot.connect(self.boot)
+        broadcast_kalamari.connect(self.signal_broadcast)
 
     # Remote functions
 
@@ -57,6 +60,9 @@ class KalamariService(Service):
             callback(data)
         for callback in self.eager_subs:
             callback(uri, data)
+
+    def signal_broadcast(self, sender, uri, data):
+        self.broadcast(uri, data)
 
     # internal
 

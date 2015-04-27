@@ -6,6 +6,7 @@ import os
 __author__ = 'viruzzz-kun'
 
 boot_kalamari = blinker.signal('coldstar.lib.kalamari.boot')
+broadcast_kalamari = blinker.signal('coldstar.lib.kalamari:broadcast')
 
 
 class Test:
@@ -14,11 +15,12 @@ class Test:
         boot_kalamari.connect(self.boot_kalamari)
 
     def echo(self, message):
+        # Also broadcast through Service
         self.service.broadcast('test.echo', message)
         return message
 
     def data(self):
-        return {
+        data = {
             'id': 181,
             'roots': [100, 12, 32, 42],
             'dict': {
@@ -26,6 +28,9 @@ class Test:
                 'random': os.urandom(8).encode('hex'),
             }
         }
+        # Also broadcast through signal
+        broadcast_kalamari.send(self, uri='test.data', data=data)
+        return data
 
     def lc(self):
         self.service.broadcast('test.broadcast', {
