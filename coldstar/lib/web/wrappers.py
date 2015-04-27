@@ -18,9 +18,6 @@ from .interfaces import ITemplatedSite, IWebSession, ITemplatedRequest
 __author__ = 'viruzzz-kun'
 __created__ = '08.02.2015'
 
-cas_boot = blinker.signal('coldstar.lib.castiel.boot')
-
-
 @implementer(ITemplatedRequest)
 class TemplatedRequest(Request):
     currentAppPath = '/'
@@ -64,10 +61,15 @@ class TemplatedRequest(Request):
         return result
 
     def get_auth(self):
-        cas = getattr(self.session.site, 'cas', None)
-        if not cas:
-            return
-        return cas.get_user_quick()
+        """
+        :rtype: coldstar.lib.castiel.service.AuthTokenObject | None
+        :return:
+        """
+        cas = getattr(self.site, 'cas', None)
+        if cas is not None:
+            # FIXME: Cookie name should be configurable
+            token = self.getCookie('CastielAuthToken').decode('hex')
+            return cas.get_user_quick(token)
 
     @property
     def user_agent(self):
@@ -91,6 +93,9 @@ class WebSession(components.Componentized):
 
     def flash_message(self, message):
         self.flashed_messages.append(message)
+
+
+cas_boot = blinker.signal('coldstar.lib.castiel.boot')
 
 
 @implementer(ITemplatedSite)

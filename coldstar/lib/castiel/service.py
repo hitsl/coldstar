@@ -85,11 +85,11 @@ class CastielService(Service):
 
             deadline = ctime + self.expiry_time
             ato = self.tokens[token] = AuthTokenObject(user, deadline, token)  # (deadline, user_id)
-            blinker.signal('coldstar.castiel.token.acquired').send(self, token=token, ato=ato)
+            blinker.signal('coldstar.lib.castiel.token.acquired').send(self, token=token, ato=ato)
             return ato
 
         def _eb(f):
-            blinker.signal('coldstar.castiel.token.invalid_credentials').send(self, login=login, password=password)
+            blinker.signal('coldstar.lib.castiel.token.invalid_credentials').send(self, login=login, password=password)
             return f
 
         d = self.auth.get_user(login, password)
@@ -99,8 +99,8 @@ class CastielService(Service):
     def release_token(self, token):
         if token in self.tokens:
             ato = self.tokens[token]
-            blinker.signal('coldstar.castiel.token.expired').send(self, token=token, ato=ato)
-            blinker.signal('coldstar.castiel.token.released').send(self, token=token, ato=ato)
+            blinker.signal('coldstar.lib.castiel.token.expired').send(self, token=token, ato=ato)
+            blinker.signal('coldstar.lib.castiel.token.released').send(self, token=token, ato=ato)
             del self.tokens[token]
             return defer.succeed(True)
         return failure.Failure(EExpiredToken(token))
@@ -131,10 +131,16 @@ class CastielService(Service):
         for token, ato in self.tokens.items():
             if ato.deadline < now:
                 print "token", token.encode('hex'), "expired"
-                blinker.signal('coldstar.castiel.token.expired').send(self, token=token, ato=ato)
+                blinker.signal('coldstar.lib.castiel.token.expired').send(self, token=token, ato=ato)
                 del self.tokens[token]
 
     def get_user_quick(self, token):
+        """
+        Returns users Auth Token Object
+        :param token: Auth token
+        :rtype: AuthTokenObject
+        :return:
+        """
         if token not in self.tokens:
             return None
         ato = self.tokens[token]
@@ -151,14 +157,14 @@ class CastielService(Service):
         self.expired_cleaner = LoopingCall(self._clean_expired)
         self.expired_cleaner.start(self.clean_period)
         Service.startService(self)
-        blinker.signal('coldstar.castiel.service.started').send(self)
+        blinker.signal('coldstar.lib.castiel.service.started').send(self)
 
     def stopService(self):
         self.expired_cleaner.stop()
         with open('tokens.msgpack', 'wb') as f:
             f.write(msgpack_helpers.dump(self.tokens))
         Service.stopService(self)
-        blinker.signal('coldstar.castiel.service.stopped').send(self)
+        blinker.signal('coldstar.lib.castiel.service.stopped').send(self)
 
     def bootstrap_cas(self, root):
         print('Castiel: initialized')
