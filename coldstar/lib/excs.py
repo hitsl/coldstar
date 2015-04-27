@@ -34,6 +34,16 @@ class LockerNotSet(SerializableBaseException):
         self.message = 'Locker not set'
 
 
+class Unauthorized(SerializableBaseException):
+    def __init__(self):
+        self.message = 'Not Authorized'
+
+
+class UnknownCommand(SerializableBaseException):
+    def __init__(self, command):
+        self.message = u'Unknown command %s' % command
+
+
 class ExceptionWrapper(SerializableBaseException):
     def __init__(self, original_exception):
         self.o = original_exception
