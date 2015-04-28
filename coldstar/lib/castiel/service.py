@@ -56,6 +56,9 @@ class CastielUserRegistry(UserDict):
         )
 
 
+broadcast_kalamari = blinker.signal('coldstar.lib.kalamari:broadcast')
+
+
 @implementer(ICasService)
 class CastielService(Service):
     expiry_time = 3600
@@ -86,10 +89,12 @@ class CastielService(Service):
             deadline = ctime + self.expiry_time
             ato = self.tokens[token] = AuthTokenObject(user, deadline, token)  # (deadline, user_id)
             blinker.signal('coldstar.lib.castiel.token.acquired').send(self, token=token, ato=ato)
+            broadcast_kalamari.send(self, uri='coldstar.lib.castiel.token.acquired', data={'user_id': user_id})
             return ato
 
         def _eb(f):
             blinker.signal('coldstar.lib.castiel.token.invalid_credentials').send(self, login=login, password=password)
+            broadcast_kalamari.send(self, uri='coldstar.lib.castiel.token.invalid_credentials', data={'login': login})
             return f
 
         d = self.auth.get_user(login, password)
@@ -101,6 +106,7 @@ class CastielService(Service):
             ato = self.tokens[token]
             blinker.signal('coldstar.lib.castiel.token.expired').send(self, token=token, ato=ato)
             blinker.signal('coldstar.lib.castiel.token.released').send(self, token=token, ato=ato)
+            broadcast_kalamari.send(self, uri='coldstar.lib.castiel.token.released', data={'user_id': ato.user_id})
             del self.tokens[token]
             return defer.succeed(True)
         return failure.Failure(EExpiredToken(token))
@@ -132,6 +138,7 @@ class CastielService(Service):
             if ato.deadline < now:
                 print "token", token.encode('hex'), "expired"
                 blinker.signal('coldstar.lib.castiel.token.expired').send(self, token=token, ato=ato)
+                broadcast_kalamari.send(self, uri='coldstar.lib.castiel.token.expired', data={'token': token})
                 del self.tokens[token]
 
     def get_user_quick(self, token):

@@ -54,6 +54,22 @@ class LockAlreadyAcquired(SerializableBaseException):
         }
 
 
+class LockInfo(object):
+    __slots__ = ['object_id', 'acquire_time', 'locker']
+
+    def __init__(self, lock):
+        self.object_id = lock.object_id
+        self.acquire_time = lock.acquire_time
+        self.locker = lock.locker
+
+    def __json__(self):
+        return {
+            'object_id': self.object_id,
+            'acquire': self.acquire_time,
+            'locker': self.locker,
+        }
+
+
 class LockReleased(SerializableBaseException):
     __slots__ = ['object_id']
 
@@ -69,6 +85,8 @@ class LockReleased(SerializableBaseException):
 
 boot = blinker.signal('coldstar.boot')
 boot_ezekiel = blinker.signal('coldstar.lib.ezekiel.boot')
+
+broadcast_kalamari = blinker.signal('coldstar.lib.kalamari:broadcast')
 
 
 @implementer(ILockService, ITmpLockService)
@@ -100,6 +118,7 @@ class EzekielService(Service):
         self.__locks[object_id] = (lock, delayed_call)
         logging.info('Lock acquired')
         blinker.signal('coldstar.lib.ezekiel.lock.acquired').send(self, lock=lock)
+        broadcast_kalamari.send(self, uri='coldstar.lib.ezekiel.lock.acquired', data=LockInfo(lock))
         return lock
 
     def acquire_lock(self, object_id, locker):
@@ -116,6 +135,7 @@ class EzekielService(Service):
                 if delayed_call and delayed_call.active():
                     delayed_call.cancel()
                 blinker.signal('coldstar.lib.ezekiel.lock.released').send(self, lock=lock)
+                broadcast_kalamari.send(self, uri='coldstar.lib.ezekiel.lock.released', data=LockInfo(lock))
                 return LockReleased(lock)
             raise LockNotFound(object_id)
         raise LockNotFound(object_id)
