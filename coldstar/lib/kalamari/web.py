@@ -2,6 +2,7 @@
 from functools import partial
 import json
 import blinker
+from coldstar.lib.eventsource import make_event
 from coldstar.lib.utils import api_method, as_json
 from coldstar.lib.web.wrappers import Resource, AutoRedirectResource
 from twisted.python.failure import Failure
@@ -60,9 +61,7 @@ class KalamariEventSourceResource(Resource):
         pp = filter(None, request.postpath)
 
         def push(uri, data):
-            request.write('event: %s\n' % uri)
-            request.write('\n'.join(map(lambda x: 'data: %s\n' % x, as_json(data).splitlines())))
-            request.write('\n')
+            request.write(make_event(data, uri))
 
         def onFinish(result):
             self.service.unsubscribe(None, push)

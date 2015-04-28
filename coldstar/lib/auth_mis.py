@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from hashlib import md5
+from coldstar.lib.twisted_helpers import deferred_to_thread
 
 from zope.interface import implementer
 import blinker
@@ -69,31 +70,24 @@ class MisAuthenticator(object):
         print('Auth Mis: Database connected')
         self.db = sender
 
+    @deferred_to_thread
     def get_user(self, login, password):
-        from twisted.internet.threads import deferToThread
-        from twisted.internet import defer
-
         if not self.db:
-            return defer.fail(Exception('Database is not initialized'))
+            raise Exception('Database is not initialized')
+        with self.db.context_session(True) as session:
+            if isinstance(password, unicode):
+                pwd = password.encode('utf-8', errors='ignore')
+            elif isinstance(password, str):
+                pwd = password
+            else:
+                raise TypeError('password should be either unicode ot str')
+            result = session.query(Person).filter(
+                Person.login == login,
+                Person.password == md5(pwd).hexdigest()).first()
 
-        def get_user_w():
-            with self.db.context_session(True) as session:
-                if isinstance(password, unicode):
-                    pwd = password.encode('utf-8', errors='ignore')
-                elif isinstance(password, str):
-                    pwd = password
-                else:
-                    raise TypeError('password should be either unicode ot str')
-                result = session.query(Person).filter(
-                    Person.login == login,
-                    Person.password == md5(pwd).hexdigest()).first()
-
-                if result:
-                    return MisAuthObject(result)
-                raise EInvalidCredentials
-
-        d = deferToThread(get_user_w)
-        return d
+            if result:
+                return MisAuthObject(result)
+            raise EInvalidCredentials
 
 
 def make(config):

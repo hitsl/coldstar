@@ -86,3 +86,8 @@ def get_args(request):
         (key, value[0])
         for key, value in request.args.iteritems()
     )
+
+
+def transfer_fields(dest, src, fields):
+    for name in fields:
+        setattr(dest, name, getattr(src, name))
