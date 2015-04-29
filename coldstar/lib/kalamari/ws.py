@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 from functools import partial
 import json
-from autobahn.twisted.resource import WebSocketResource
 
 from autobahn.twisted.websocket import WebSocketServerFactory
-import blinker
 from autobahn.twisted.websocket import WebSocketServerProtocol
 from coldstar.lib.utils import as_json
-from coldstar.lib.web.wrappers import AutoRedirectResource
-from twisted.web.static import Data
 
 
 __author__ = 'viruzzz-kun'
@@ -127,13 +123,6 @@ class WsProtocol(WebSocketServerProtocol):
         self.sendMessageJson({'uri': uri, 'data': data})
 
 
-boot = blinker.signal('coldstar.boot')
-boot_kalamari = blinker.signal('coldstar.lib.kalamari.boot')
-boot_self = blinker.signal('coldstar.lib.kalamari.ws.boot')
-boot_web = blinker.signal('coldstar.lib.web.boot')
-boot_cas = blinker.signal('coldstar.lib.castiel.boot')
-
-
 class WsFactory(WebSocketServerFactory):
     protocol = WsProtocol
     service = None
@@ -146,34 +135,4 @@ class WsFactory(WebSocketServerFactory):
         return protocol
 
 
-class WsResource(AutoRedirectResource):
-    def __init__(self):
-        AutoRedirectResource.__init__(self)
-        self.ws_factory = WsFactory()
-        self.putChild('', WebSocketResource(self.ws_factory))
-        self.putChild('test', Data(test_page.encode('utf-8'), 'text/html; charset=utf-8'))
-        boot.connect(self.boot)
-        boot_kalamari.connect(self.boot_kalamari)
-        boot_web.connect(self.boot_web)
-        boot_cas.connect(self.boot_cas)
-
-    def boot(self, root):
-        print 'Kalamari WS: boot...'
-        boot_self.send(self)
-
-    def boot_kalamari(self, service):
-        print 'Kalamari WS: Service connected'
-        self.ws_factory.service = service
-
-    def boot_web(self, web_service):
-        print 'Kalamari WS: Web connected'
-        web_service.root_resource.putChild('ws', self)
-
-    def boot_cas(self, castiel):
-        print 'Kalamari WS: Cas connected'
-        self.ws_factory.cas = castiel
-
 test_page = u"""Here be test page"""
-
-def make(config):
-    return WsResource()

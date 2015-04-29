@@ -35,7 +35,7 @@ class TestPageResource(Resource):
                             $timeout.cancel(reconnect_timeout);
                             reconnect_timeout = null;
                         }
-                        send_command('locker', {
+                        send_command('auth', {
                             locker: self.locker
                         });
                         for (var i=0; i < queue.length; i++) {
@@ -93,7 +93,7 @@ class TestPageResource(Resource):
                         magic = String(Math.floor(Math.random() * Math.pow(2, 16)));
                     promises[magic] = defer;
                     ws.send(JSON.stringify({
-                        command: command,
+                        type: command,
                         params: params,
                         magic: magic
                     }));
@@ -112,7 +112,7 @@ class TestPageResource(Resource):
         ColdStarCtrl = function($scope, ColdStarWS) {
             $scope.messages = [];
             $scope.tokens = {};
-            var myWS = new ColdStarWS('ws://' + location.host + '/ws/', 'test!12');
+            var myWS = new ColdStarWS('ws://' + location.host + '/kalamari/ws', 'test!12');
             myWS.connect();
             $scope.ws_acquire = function() {
                 myWS.acquire_lock('test_01').then(function(result) {
