@@ -13,11 +13,11 @@ __author__ = 'viruzzz-kun'
 __created__ = '05.10.2014'
 
 
-boot = blinker.signal('coldstar.boot')
-boot_ezekiel = blinker.signal('coldstar.lib.ezekiel.boot')
-boot_web = blinker.signal('coldstar.lib.web.boot')
-boot_rest = blinker.signal('coldstar.lib.ezekiel.rest.boot')
-boot_cas = blinker.signal('coldstar.lib.castiel.boot')
+boot = blinker.signal('coldstar:boot')
+boot_ezekiel = blinker.signal('coldstar.lib.ezekiel:boot')
+boot_web = blinker.signal('coldstar.lib.web:boot')
+boot_rest = blinker.signal('coldstar.lib.ezekiel.rest:boot')
+boot_cas = blinker.signal('coldstar.lib.castiel:boot')
 
 
 @implementer(IResource, IRestService)

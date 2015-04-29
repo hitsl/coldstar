@@ -6,9 +6,9 @@ __author__ = 'viruzzz-kun'
 __created__ = '04.04.2015'
 
 
-cas_boot = blinker.signal('coldstar.lib.castiel.boot')
-boot = blinker.signal('coldstar.boot')
-self_boot = blinker.signal('coldstar.lib.web.boot')
+cas_boot = blinker.signal('coldstar.lib.castiel:boot')
+boot = blinker.signal('coldstar:boot')
+self_boot = blinker.signal('coldstar.lib.web:boot')
 
 
 class WebService(object):

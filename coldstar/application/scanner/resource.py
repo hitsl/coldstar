@@ -18,9 +18,9 @@ class ScanResource(Resource):
         Resource.__init__(self)
         self.service = None
         self.cors_domain = config.get('cors_domain', '*')
-        blinker.signal('coldstar.boot').connect(self.bootstrap)
-        blinker.signal('coldstar.application.scanner.boot').connect(self.service_boot)
-        blinker.signal('coldstar.lib.web.boot').connect(self.web_boot)
+        blinker.signal('coldstar:boot').connect(self.bootstrap)
+        blinker.signal('coldstar.application.scanner:boot').connect(self.service_boot)
+        blinker.signal('coldstar.lib.web:boot').connect(self.web_boot)
 
     def render(self, request):
         """
@@ -94,7 +94,7 @@ class ScanResource(Resource):
 
     def bootstrap(self, root):
         print('Scan Web: initialized')
-        blinker.signal('coldstar.application.scanner.resource.boot').send(self)
+        blinker.signal('coldstar.application.scanner.resource:boot').send(self)
 
     def service_boot(self, service):
         self.service = service

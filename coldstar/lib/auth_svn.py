@@ -16,8 +16,8 @@ __author__ = 'viruzzz-kun'
 __created__ = '08.02.2015'
 
 
-boot = blinker.signal('coldstar.boot')
-self_boot = blinker.signal('coldstar.lib.auth.boot')
+boot = blinker.signal('coldstar:boot')
+self_boot = blinker.signal('coldstar.lib.auth:boot')
 
 
 @implementer(IAuthObject)

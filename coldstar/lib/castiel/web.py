@@ -14,10 +14,10 @@ __author__ = 'viruzzz-kun'
 __created__ = '08.02.2015'
 
 
-boot = blinker.signal('coldstar.boot')
-web_boot = blinker.signal('coldstar.lib.web.boot')
-cas_boot = blinker.signal('coldstar.lib.castiel.boot')
-self_boot = blinker.signal('coldstar.lib.castiel.web.boot')
+boot = blinker.signal('coldstar:boot')
+web_boot = blinker.signal('coldstar.lib.web:boot')
+cas_boot = blinker.signal('coldstar.lib.castiel:boot')
+self_boot = blinker.signal('coldstar.lib.castiel.web:boot')
 
 
 @implementer(IResource)

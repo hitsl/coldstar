@@ -112,7 +112,7 @@ class TestPageResource(Resource):
         ColdStarCtrl = function($scope, ColdStarWS) {
             $scope.messages = [];
             $scope.tokens = {};
-            var myWS = new ColdStarWS('ws://' + location.host + '/kalamari/ws', 'test!12');
+            var myWS = new ColdStarWS('ws://' + location.host + '/gabriel/ws', 'test!12');
             myWS.connect();
             $scope.ws_acquire = function() {
                 myWS.acquire_lock('test_01').then(function(result) {

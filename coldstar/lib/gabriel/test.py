@@ -5,14 +5,14 @@ import os
 
 __author__ = 'viruzzz-kun'
 
-boot_kalamari = blinker.signal('coldstar.lib.kalamari.boot')
-broadcast_kalamari = blinker.signal('coldstar.lib.kalamari:broadcast')
+boot_gabriel = blinker.signal('coldstar.lib.gabriel:boot')
+broadcast_gabriel = blinker.signal('coldstar.lib.gabriel:broadcast')
 
 
 class Test:
     def __init__(self):
         self.service = None
-        boot_kalamari.connect(self.boot_kalamari)
+        boot_gabriel.connect(self.boot_gabriel)
 
     def echo(self, message):
         # Also broadcast through Service
@@ -29,7 +29,7 @@ class Test:
             }
         }
         # Also broadcast through signal
-        broadcast_kalamari.send(self, uri='test.data', data=data)
+        broadcast_gabriel.send(self, uri='test.data', data=data)
         return data
 
     def lc(self):
@@ -38,13 +38,13 @@ class Test:
             'time': time.time()
         })
 
-    def boot_kalamari(self, service):
+    def boot_gabriel(self, service):
         """
-        :type service: coldstar.lib.kalamari.service.KalamariService
+        :type service: coldstar.lib.gabriel.service.GabrielService
         :param service:
         :return:
         """
-        print 'Kalamari Test: Service connected'
+        print 'Gabriel Test: Service connected'
         self.service = service
         service.register_function('test.echo', self.echo)
         service.register_function('test.data', self.data)

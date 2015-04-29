@@ -95,7 +95,7 @@ class WebSession(components.Componentized):
         self.flashed_messages.append(message)
 
 
-cas_boot = blinker.signal('coldstar.lib.castiel.boot')
+cas_boot = blinker.signal('coldstar.lib.castiel:boot')
 
 
 @implementer(ITemplatedSite)

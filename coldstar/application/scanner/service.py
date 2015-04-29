@@ -120,7 +120,7 @@ class ScanService(Service):
         self.scan_currents = {}
         self.scan_list_deferred = None
         self.cached_scan_list = ([], 0)
-        blinker.signal('coldstar.boot').connect(self.bootstrap)
+        blinker.signal('coldstar:boot').connect(self.bootstrap)
 
     def getImage(self, dev_name, consumer, options):
         protocol = ScanProtocol(dev_name, consumer, options)
@@ -170,4 +170,4 @@ class ScanService(Service):
 
     def bootstrap(self, root):
         self.setServiceParent(root)
-        blinker.signal('coldstar.application.scanner.boot').send(self)
+        blinker.signal('coldstar.application.scanner:boot').send(self)

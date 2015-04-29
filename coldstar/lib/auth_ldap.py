@@ -9,8 +9,8 @@ from coldstar.lib.castiel.interfaces import IAuthenticator
 
 __author__ = 'viruzzz-kun'
 
-boot = blinker.signal('coldstar.boot')
-self_boot = blinker.signal('coldstar.lib.auth.boot')
+boot = blinker.signal('coldstar:boot')
+self_boot = blinker.signal('coldstar.lib.auth:boot')
 
 
 @implementer(IAuthObject)

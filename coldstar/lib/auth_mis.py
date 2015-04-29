@@ -17,9 +17,9 @@ Base = declarative_base()
 metadata = Base.metadata
 
 
-boot = blinker.signal('coldstar.boot')
-self_boot = blinker.signal('coldstar.lib.auth.boot')
-db_boot = blinker.signal('coldstar.lib.db.boot')
+boot = blinker.signal('coldstar:boot')
+self_boot = blinker.signal('coldstar.lib.auth:boot')
+db_boot = blinker.signal('coldstar.lib.db:boot')
 
 
 class Person(Base):

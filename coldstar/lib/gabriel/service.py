@@ -2,25 +2,25 @@
 import collections
 import blinker
 from weakref import WeakSet
-from coldstar.lib.kalamari.excs import NoSuchMethod, MethodAlreadyRegistered, MethodUriMismatch
+from coldstar.lib.gabriel.excs import NoSuchMethod, MethodAlreadyRegistered, MethodUriMismatch
 from twisted.application.service import Service
 
 __author__ = 'viruzzz-kun'
 
 
-boot = blinker.signal('coldstar.boot')
-boot_kalamari = blinker.signal('coldstar.lib.kalamari.boot')
+boot = blinker.signal('coldstar:boot')
+boot_gabriel = blinker.signal('coldstar.lib.gabriel:boot')
 
-broadcast_kalamari = blinker.signal('coldstar.lib.kalamari:broadcast')
+broadcast_gabriel = blinker.signal('coldstar.lib.gabriel:broadcast')
 
 
-class KalamariService(Service):
+class GabrielService(Service):
     def __init__(self, config):
         self.functions = {}
         self.subscriptions = collections.defaultdict(WeakSet)
         self.eager_subs = WeakSet()
         boot.connect(self.boot)
-        broadcast_kalamari.connect(self.signal_broadcast)
+        broadcast_gabriel.connect(self.signal_broadcast)
 
     # Remote functions
 
@@ -67,6 +67,6 @@ class KalamariService(Service):
     # internal
 
     def boot(self, root):
-        print 'Kalamari: boot...'
+        print 'Gabriel: boot...'
         self.setServiceParent(root)
-        boot_kalamari.send(self)
+        boot_gabriel.send(self)

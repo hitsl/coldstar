@@ -21,9 +21,9 @@ from .interfaces import ICasService, IAuthTokenObject
 __author__ = 'mmalkov'
 
 
-boot = blinker.signal('coldstar.boot')
-cas_boot = blinker.signal('coldstar.lib.castiel.boot')
-auth_boot = blinker.signal('coldstar.lib.auth.boot')
+boot = blinker.signal('coldstar:boot')
+cas_boot = blinker.signal('coldstar.lib.castiel:boot')
+auth_boot = blinker.signal('coldstar.lib.auth:boot')
 
 
 @implementer(IAuthTokenObject)
@@ -56,7 +56,7 @@ class CastielUserRegistry(UserDict):
         )
 
 
-broadcast_kalamari = blinker.signal('coldstar.lib.kalamari:broadcast')
+broadcast_gabriel = blinker.signal('coldstar.lib.gabriel:broadcast')
 
 
 @implementer(ICasService)
@@ -88,13 +88,13 @@ class CastielService(Service):
 
             deadline = ctime + self.expiry_time
             ato = self.tokens[token] = AuthTokenObject(user, deadline, token)  # (deadline, user_id)
-            blinker.signal('coldstar.lib.castiel.token.acquired').send(self, token=token, ato=ato)
-            broadcast_kalamari.send(self, uri='coldstar.lib.castiel.token.acquired', data={'user_id': user_id})
+            blinker.signal('coldstar.lib.castiel:token.acquired').send(self, token=token, ato=ato)
+            broadcast_gabriel.send(self, uri='coldstar.lib.castiel:token.acquired', data={'user_id': user_id})
             return ato
 
         def _eb(f):
-            blinker.signal('coldstar.lib.castiel.token.invalid_credentials').send(self, login=login, password=password)
-            broadcast_kalamari.send(self, uri='coldstar.lib.castiel.token.invalid_credentials', data={'login': login})
+            blinker.signal('coldstar.lib.castiel:token.invalid_credentials').send(self, login=login, password=password)
+            broadcast_gabriel.send(self, uri='coldstar.lib.castiel:token.invalid_credentials', data={'login': login})
             return f
 
         d = self.auth.get_user(login, password)
@@ -104,9 +104,9 @@ class CastielService(Service):
     def release_token(self, token):
         if token in self.tokens:
             ato = self.tokens[token]
-            blinker.signal('coldstar.lib.castiel.token.expired').send(self, token=token, ato=ato)
-            blinker.signal('coldstar.lib.castiel.token.released').send(self, token=token, ato=ato)
-            broadcast_kalamari.send(self, uri='coldstar.lib.castiel.token.released', data={'user_id': ato.user_id})
+            blinker.signal('coldstar.lib.castiel:token.expired').send(self, token=token, ato=ato)
+            blinker.signal('coldstar.lib.castiel:token.released').send(self, token=token, ato=ato)
+            broadcast_gabriel.send(self, uri='coldstar.lib.castiel:token.released', data={'user_id': ato.user_id})
             del self.tokens[token]
             return defer.succeed(True)
         return failure.Failure(EExpiredToken(token))
@@ -137,8 +137,8 @@ class CastielService(Service):
         for token, ato in self.tokens.items():
             if ato.deadline < now:
                 print "token", token.encode('hex'), "expired"
-                blinker.signal('coldstar.lib.castiel.token.expired').send(self, token=token, ato=ato)
-                broadcast_kalamari.send(self, uri='coldstar.lib.castiel.token.expired', data={'token': token})
+                blinker.signal('coldstar.lib.castiel:token.expired').send(self, token=token, ato=ato)
+                broadcast_gabriel.send(self, uri='coldstar.lib.castiel:token.expired', data={'token': token})
                 del self.tokens[token]
 
     def get_user_quick(self, token):
@@ -164,14 +164,14 @@ class CastielService(Service):
         self.expired_cleaner = LoopingCall(self._clean_expired)
         self.expired_cleaner.start(self.clean_period)
         Service.startService(self)
-        blinker.signal('coldstar.lib.castiel.service.started').send(self)
+        blinker.signal('coldstar.lib.castiel:service.started').send(self)
 
     def stopService(self):
         self.expired_cleaner.stop()
         with open('tokens.msgpack', 'wb') as f:
             f.write(msgpack_helpers.dump(self.tokens))
         Service.stopService(self)
-        blinker.signal('coldstar.lib.castiel.service.stopped').send(self)
+        blinker.signal('coldstar.lib.castiel:service.stopped').send(self)
 
     def bootstrap_cas(self, root):
         print('Castiel: initialized')

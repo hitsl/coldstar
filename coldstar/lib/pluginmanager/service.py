@@ -10,7 +10,7 @@ __author__ = 'viruzzz-kun'
 __created__ = '04.04.2015'
 
 
-boot = blinker.signal('coldstar.boot')
+boot = blinker.signal('coldstar:boot')
 
 
 def set_value(d, path, items):

@@ -5,4 +5,4 @@ __author__ = 'viruzzz-kun'
 
 
 def make(config):
-    return service.KalamariService(config)
+    return service.GabrielService(config)

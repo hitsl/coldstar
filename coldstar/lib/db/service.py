@@ -13,8 +13,8 @@ from .interfaces import IDataBaseService
 __author__ = 'mmalkov'
 
 
-boot = blinker.signal('coldstar.boot')
-self_boot = blinker.signal('coldstar.lib.db.boot')
+boot = blinker.signal('coldstar:boot')
+self_boot = blinker.signal('coldstar.lib.db:boot')
 
 
 @implementer(IDataBaseService)
