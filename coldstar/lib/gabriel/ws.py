@@ -1,24 +1,28 @@
 # -*- coding: utf-8 -*-
-from functools import partial
 import json
 
 from autobahn.twisted.websocket import WebSocketServerFactory
 from autobahn.twisted.websocket import WebSocketServerProtocol
+from coldstar.lib.excs import SerializableBaseException, ExceptionWrapper
 from coldstar.lib.utils import as_json
+from .interfaces import IGabrielSession, IWebSocketProtocol
+from twisted.internet import defer
+from zope.interface import implementer
 
 
 __author__ = 'viruzzz-kun'
 
 
+@implementer(IWebSocketProtocol)
 class WsProtocol(WebSocketServerProtocol):
     cookie_name = 'CastielAuthToken'
     user_id = None
     service = None
     cas = None
+    session = None
 
     def __init__(self):
         self.cookies = {}
-        self.subscriptions = {}
 
     def processCookies(self, request):
         for cookietxt in request.headers.get('cookie', []):
@@ -31,15 +35,10 @@ class WsProtocol(WebSocketServerProtocol):
                     except ValueError:
                         pass
 
-    def authenticate(self, token):
-        if self.cas and token:
-            o = self.cas.get_user_quick(token)
-            self.user_id = o.user_id
-
     def onClose(self, wasClean, code, reason):
-        for uri, p in self.subscriptions.iteritems():
-            self.service.unsubscribe(uri, p)
-            WebSocketServerProtocol.onClose(self, wasClean, code, reason)
+        if self.session:
+            self.session.unregister()
+        WebSocketServerProtocol.onClose(self, wasClean, code, reason)
 
     def onConnect(self, request):
         """
@@ -48,17 +47,31 @@ class WsProtocol(WebSocketServerProtocol):
         :type request: autobahn.websocket.protocol.ConnectionRequest
         :return:
         """
+        self.session = IGabrielSession(self)
+        self.session.session_manager = self.service
         self.processCookies(request)
         if self.cookie_name in self.cookies:
-            self.authenticate(self.cookies.get(self.cookie_name).decode('hex'))
+            token_hex = self.cookies.get(self.cookie_name)
+            token = token_hex.decode('hex')
+            if self.cas and token:
+                o = self.cas.get_user_quick(token)
+                self.user_id = o.user_id
+                self.session.user_id = o.user_id
+                self.session.register()
         return WebSocketServerProtocol.onConnect(self, request)
 
     def onMessage(self, payload, isBinary):
         WebSocketServerProtocol.onMessage(self, payload, isBinary)
+        try:
+            self.process_message(payload)
+        except SerializableBaseException as e:
+            self.sendMessageJson(e)
+        except Exception as e:
+            self.sendMessageJson(ExceptionWrapper(e))
+
+    def process_message(self, payload):
         msg = json.loads(payload)
         msg_type = msg['type']
-        if msg_type == 'auth':  # В случае, если аутентифицируемся токеном вручную
-            self.authenticate(msg['token'].decode('hex'))
         if not self.user_id:
             self.sendMessageJson({'exception': 'Not authorized', })
             return
@@ -76,39 +89,28 @@ class WsProtocol(WebSocketServerProtocol):
                 'object': msg,
             })
 
+    @defer.inlineCallbacks
     def process_call(self, msg):
         uri = msg['uri']
         magic = msg['magic']
         args = msg.get('args', [])
         kwargs = msg.get('kwargs', {})
 
-        def _cb(result):
-            self.sendMessageJson({
-                'magic': magic,
-                'result': result,
-            })
-
-        def _eb(failure):
-            self.sendMessageJson(failure.value)
-
-        self.service.call(uri, *args, **kwargs).addCallbacks(_cb, _eb)
+        result = yield self.session.received_call(uri, *args, **kwargs)
+        self.sendMessageJson({
+            'success': True,
+            'magic': magic,
+            'result': result,
+        })
 
     def process_broadcast(self, msg):
-        uri = msg['uri']
-        data = msg['data']
-        self.service.broadcast(uri=uri, data=data)
+        self.session.received_broadcast(uri=msg['uri'], data=msg['data'])
 
     def process_subscribe(self, msg):
-        uri = msg['uri']
-        if uri in self.subscriptions:
-            return
-        p = self.subscriptions[uri] = partial(self.sendNotification, uri)
-        self.service.subscribe(uri, p)
+        self.session.subscribe(msg['uri'])
 
     def process_unsubscribe(self, msg):
-        uri = msg['uri']
-        if uri in self.subscriptions:
-            self.service.unsubscribe(uri, self.subscriptions.pop(uri))
+        self.session.unsubscribe(msg['uri'])
 
     def del_prefixed_subscriptions(self, uri):
         prefix = uri + '.'
@@ -120,7 +122,7 @@ class WsProtocol(WebSocketServerProtocol):
         self.sendMessage(as_json(obj))
 
     def sendNotification(self, uri, data):
-        self.sendMessageJson({'uri': uri, 'data': data})
+        self.sendMessageJson({'type': 'broadcast', 'uri': uri, 'data': data})
 
 
 class WsFactory(WebSocketServerFactory):

@@ -50,7 +50,7 @@ class Test:
         service.register_function('test.data', self.data)
         from twisted.internet.task import LoopingCall
         lc = LoopingCall(self.lc)
-        lc.start(10)
+        lc.start(1)
 
 
 def make(config):

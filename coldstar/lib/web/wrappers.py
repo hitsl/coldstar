@@ -68,7 +68,10 @@ class TemplatedRequest(Request):
         cas = getattr(self.site, 'cas', None)
         if cas is not None:
             # FIXME: Cookie name should be configurable
-            token = self.getCookie('CastielAuthToken').decode('hex')
+            token_hex = self.getCookie('CastielAuthToken')
+            if not token_hex:
+                return
+            token = token_hex.decode('hex')
             return cas.get_user_quick(token)
 
     @property

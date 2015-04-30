@@ -4,6 +4,7 @@ import json
 from autobahn.twisted.resource import WebSocketResource
 import blinker
 from coldstar.lib.eventsource import make_event
+from coldstar.lib.gabriel.interfaces import IGabrielSession
 from coldstar.lib.gabriel.test_page import TestPageResource
 from coldstar.lib.gabriel.ws import WsFactory
 from coldstar.lib.utils import api_method
@@ -62,34 +63,26 @@ class GabrielEventSourceResource(Resource):
         :param request:
         :return:
         """
-        pp = filter(None, request.postpath)
+        user = request.get_auth()
+        if not user:
+            request.setResponseCode(401)
+            return ''
+        session = IGabrielSession(request)
+        session.session_manager = self.service
+        session.user_id = user.user_id
 
-        def push(uri, data):
-            request.write(make_event(data, uri))
+        for uri in request.args.get('uri'):
+            session.subscribe(uri)
 
         def onFinish(result):
-            self.service.unsubscribe(None, push)
-            for uri, p in uri_dict.iteritems():
-                self.service.unsubscribe(uri, p)
+            session.unregister()
             if not isinstance(result, Failure):
                 return result
 
-        def register():
-            if len(pp) == 1 and pp[0] == '*':
-                self.service.subscribe(None, push)
-            for uri, p in uri_dict.iteritems():
-                self.service.subscribe(uri, p)
-
-        uri_dict = dict(
-            (uri, partial(push, uri))
-            for uri in request.args.get('uri', [])
-        )
-
         request.notifyFinish().addBoth(onFinish)
-
-        register()
         request.setHeader('Content-Type', 'text/event-stream')
         request.write('')
+        session.register()
         return NOT_DONE_YET
 
 
@@ -106,7 +99,7 @@ class GabrielResource(AutoRedirectResource):
         self.putChild('exec', self.func_resource)
         self.putChild('eventsource', self.es_resource)
         self.putChild('test', self.test_resource)
-        self.putChild('', static.Data(u'Gabriel (afrikaans) - это спрут'.encode('utf-8'), 'text/plain; charset=utf-8'))
+        self.putChild('', static.Data(u'I am Gabriel, trickster Loki'.encode('utf-8'), 'text/plain; charset=utf-8'))
 
         boot.connect(self.boot)
         boot_gabriel.connect(self.boot_gabriel)
