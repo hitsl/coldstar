@@ -28,18 +28,27 @@ class EzekielRestResource(Resource):
         Resource.__init__(self)
         self.service = None
         self.cas = None
+        self.web_service = None
         boot.connect(self.boot)
         boot_ezekiel.connect(self.boot_ezekiel)
         boot_web.connect(self.boot_web)
         boot_cas.connect(self.boot_cas)
 
     @api_method
-    def render_GET(self, request):
+    def render(self, request):
         """
         :type request: coldstar.lib.web.wrappers.TemplatedRequest
         :param request:
         :return:
         """
+        request.setHeader('Access-Control-Allow-Origin', self.web_service.cors_domain)
+        if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
+            # Preflight Request
+            request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            request.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+            request.setHeader('Access-Control-Max-Age', '600')
+            return ''
+
         request.setHeader('Content-Type', 'application/json; charset=utf-8')
         pp = filter(None, request.postpath)
         if len(pp) == 2:
@@ -78,6 +87,7 @@ class EzekielRestResource(Resource):
         print 'Ezekiel.Rest: Service connected'
 
     def boot_web(self, web):
+        self.web_service = web
         web.root_resource.putChild('ezekiel', self)
 
     def boot_cas(self, cas):
