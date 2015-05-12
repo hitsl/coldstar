@@ -94,7 +94,14 @@ class GetDevicesProtocol(ProcessProtocol):
         if self.deferred.called:
             return
         if isinstance(reason.value, ConnectionClosed):
-            self.deferred.callback(json.loads(b''.join(self.buffer)))
+            result = []
+            try:
+                buf = b''.join(self.buffer)
+                result = json.loads(buf)
+            except ValueError:
+                pass
+            finally:
+                self.deferred.callback(result)
         else:
             self.deferred.errback(reason)
 
