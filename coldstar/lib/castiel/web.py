@@ -38,7 +38,7 @@ class CastielWebResource(AutoRedirectResource):
         web_boot.connect(self.web_boot)
 
     def get_cookie_domain(self, source):
-        return self.domain_map.get(source, 'localhost')
+        return self.domain_map.get(source, self.default_cookie_domain)
 
     def bootstrap_cas_web(self, root):
         print('Castiel Web: initialized')
