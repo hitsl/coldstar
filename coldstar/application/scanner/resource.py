@@ -6,7 +6,7 @@ from twisted.python.components import registerAdapter
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import NOT_DONE_YET
 from coldstar.application.scanner.interfaces import IScanService
-from coldstar.lib.utils import api_method, get_args
+from coldstar.lib.utils import api_method, get_args, as_json
 
 __author__ = 'viruzzz-kun'
 
@@ -85,6 +85,9 @@ class ScanResource(Resource):
 
         def _eb(failure):
             if not isinstance(failure.value, CancelledError):
+                request.setResponseCode(500, 'Scanning error')
+                request.setHeader('Content-Type', 'text/json;charset=utf-8')
+                request.write(as_json(failure.value))
                 if not request._disconnected:
                     request.finish()
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import collections
 import json
+from coldstar.lib.excs import SerializableBaseException
 import os
 import time
 import blinker
@@ -10,6 +10,7 @@ from twisted.internet import defer
 from twisted.internet.error import ConnectionClosed, ProcessExitedAlready
 from twisted.internet.protocol import ProcessProtocol
 from twisted.protocols.basic import LineReceiver
+from twisted.python import failure
 from zope.interface import implementer
 
 from coldstar.lib.twisted_helpers import chain_deferreds
@@ -17,6 +18,16 @@ from .interfaces import IScanService
 
 
 __author__ = 'viruzzz-kun'
+
+
+class ScannerBusy(SerializableBaseException):
+    def __init__(self, dev_name):
+        self.message = u'Сканер %s занят' % dev_name
+
+
+class ScannerFailure(SerializableBaseException):
+    def __init__(self, dev_name):
+        self.message = u'Не удалось получить изображение от сканера %s' % dev_name
 
 
 class ScanProtocol(ProcessProtocol, LineReceiver):
@@ -48,7 +59,9 @@ class ScanProtocol(ProcessProtocol, LineReceiver):
         """
         if self.deferred.called:
             return
-        if isinstance(reason.value, ConnectionClosed):
+        if self.line_mode:
+            self.deferred.errback(failure.Failure(ScannerFailure(self.name)))
+        elif isinstance(reason.value, ConnectionClosed):
             self.deferred.callback(self.name)
         else:
             self.deferred.errback(reason)
@@ -123,17 +136,26 @@ class ScanService(Service):
     cache_timeout = 300
 
     def __init__(self):
-        self.scan_queues = collections.defaultdict(list)
         self.scan_currents = {}
         self.scan_list_deferred = None
         self.cached_scan_list = ([], 0)
         blinker.signal('coldstar:boot').connect(self.bootstrap)
 
     def getImage(self, dev_name, consumer, options):
+        from twisted.internet import reactor
+
+        if self.scan_currents.get(dev_name):
+            return defer.fail(ScannerBusy(dev_name))
+
         protocol = ScanProtocol(dev_name, consumer, options)
-        protocol.deferred.addBoth(self.__promote, dev_name)
-        self.scan_queues[dev_name].append(protocol)
-        self.__promote(dev_name)
+        self.scan_currents[dev_name] = protocol
+
+        def _cb(result):
+            self.scan_currents.pop(dev_name)
+            return result
+
+        protocol.deferred.addBoth(_cb)
+        reactor.callLater(0, protocol.start)
         return protocol.deferred
 
     def getScanners(self, force=False):
@@ -164,16 +186,6 @@ class ScanService(Service):
         d = defer.Deferred()
         chain_deferreds(protocol.deferred, d)
         return d
-
-    def __promote(self, name):
-        from twisted.internet import reactor
-
-        c = self.scan_currents.get(name)
-        if c is not None and c.name == name or c is None:
-            n = self.scan_queues[name].pop(0)
-            self.scan_currents[name] = n
-            if n:
-                reactor.callLater(0, n.start)
 
     def bootstrap(self, root):
         self.setServiceParent(root)
