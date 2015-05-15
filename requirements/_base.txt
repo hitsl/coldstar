@@ -1,3 +1,5 @@
+blinker
+service_identity
 twisted
 Autobahn
 jinja2
