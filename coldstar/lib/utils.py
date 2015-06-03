@@ -6,7 +6,7 @@ import functools
 from twisted.internet import defer
 
 from coldstar.lib.excs import SerializableBaseException, ExceptionWrapper
-
+from twisted.web.http import Request
 
 __author__ = 'mmalkov'
 
@@ -38,6 +38,8 @@ def api_method(func):
             result = e
         except Exception as e:
             result = ExceptionWrapper(e)
+        if len(args) > 1 and isinstance(args[1], Request):
+            args[1].setHeader('content-type', 'application/json; charset=utf-8')
         defer.returnValue(as_json(result))
     return wrapper
 

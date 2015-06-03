@@ -29,6 +29,7 @@ class EzekielRestResource(Resource):
         self.service = None
         self.cas = None
         self.web_service = None
+        self.cors_domain = '*'
         boot.connect(self.boot)
         boot_ezekiel.connect(self.boot_ezekiel)
         boot_web.connect(self.boot_web)
@@ -41,7 +42,7 @@ class EzekielRestResource(Resource):
         :param request:
         :return:
         """
-        request.setHeader('Access-Control-Allow-Origin', self.web_service.cors_domain)
+        request.setHeader('Access-Control-Allow-Origin', self.cors_domain)
         if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
             # Preflight Request
             request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
