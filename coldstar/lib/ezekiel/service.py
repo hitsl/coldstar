@@ -103,7 +103,10 @@ class EzekielService(Service):
 
     def __acquire_lock(self, object_id, locker, short):
         logging.info('Acquiring lock %s', object_id)
-        if object_id in self.__locks:
+        acquired_lock = self.__locks.get(object_id)
+        if acquired_lock is not None:
+            if short and acquired_lock[0].locker == locker:
+                return self.prolong_tmp_lock(object_id, acquired_lock[0].token)
             return LockAlreadyAcquired(self.__locks[object_id][0])
         t = time.time()
         token = uuid.uuid4().bytes
