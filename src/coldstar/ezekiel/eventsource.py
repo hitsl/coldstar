@@ -31,7 +31,7 @@ class EventSourcedLock(object):
             self.request.write(make_event(lock, 'acquired'))
             self.lc.stop()
             self.lc = LoopingCall(self.try_prolong)
-            self.lc.start(self.ezekiel.long_timeout / 2)
+            self.lc.start(self.ezekiel.long_timeout / 2, False)
         else:
             self.request.write(make_event(lock, 'rejected'))
 
@@ -48,7 +48,7 @@ class EventSourcedLock(object):
 
     def start(self):
         self.lc = LoopingCall(self.try_acquire)
-        self.lc.start(10)
+        self.lc.start(10, False)
 
     def stop(self):
         if self.lc:
