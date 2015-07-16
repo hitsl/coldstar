@@ -1,4 +1,0 @@
--r ./_base.txt
-
-cython
-cymysql

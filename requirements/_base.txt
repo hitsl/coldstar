@@ -1,10 +1,4 @@
 blinker
-service_identity
 twisted
-Autobahn
 jinja2
-sqlalchemy
-itsdangerous
-Pillow
-pyinsane
 msgpack-python

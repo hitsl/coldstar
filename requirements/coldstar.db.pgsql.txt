@@ -1,0 +1,3 @@
+-r ./coldstar.db.txt
+
+psycopg2
