@@ -43,6 +43,8 @@ class EventSourcedLock(object):
             self.lock = None
             self.stop()
             self.request.finish()
+        else:
+            self.request.write(make_event(self.lock, 'prolonged'))
 
     def start(self):
         self.lc = LoopingCall(self.try_acquire)
@@ -111,15 +113,6 @@ class EzekielEventSourceResource(Resource, ColdstarPlugin):
 
         self.cas.check_token(token.decode('hex')).addBoth(onUser)
         return NOT_DONE_YET
-
-    def acquire_tmp_lock(self, object_id, locker):
-        return self.service.acquire_lock(object_id, locker)
-
-    def prolong_tmp_lock(self, object_id, token):
-        return self.service.prolong_tmp_lock(object_id, token)
-
-    def release_lock(self, object_id, token):
-        return self.service.release_lock(object_id, token)
 
     @web.on
     def boot_web(self, web):

@@ -113,6 +113,7 @@ class EzekielService(Service, ColdstarPlugin):
             delayed_call = None
         self.__locks[object_id] = (lock, delayed_call)
         logging.info('Lock acquired')
+        log.msg('Lock for %s acquired' % object_id, system="Ezekiel")
         return lock
 
     def acquire_lock(self, object_id, locker):
