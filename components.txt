@@ -1,0 +1,20 @@
+Компоненты Coldstar и их конфигурации определяются в ini-файле (default.conf итп)
+Компонент включается определением секции файла в формате [module:<component_name>]
+
+Определённые на сегодняшний день компоненты:
+
+coldstar.db - подключение к БД
+libcoldstar.web - веб-интерфейс. Без него Coldstar довольно бесполезен
+
+coldstar.castiel - централизованная система аутентификации (КАС)
+coldstar.castiel.web - веб-интерфейс КАС (ползовательская форма логина и RPC-API)
+coldstar.auth_mis, coldstar.auth_svn, coldstar.auth_ldap - компоненты-адаптеры КАС для аутентификации через БД МИС, конфигурационные файлы SVN или LDAP соответственно
+coldstar.remote_cas - компонент доступа к КАС по RPC-API (имеет такой же интерфейс, что и coldstar.castiel, посему прозрачен)
+
+coldstar.scanner - служба сканирования
+coldstar.scanner.resource - веб-хвост службы сканирования
+
+coldstar.ezekiel - подсистема блокировок
+
+coldstar.simargl - Simargl - подсистема уведомлений. Имеет свою конфигурацию клиентов, описанную в simargl.conf
+libsimarglrpc - компонент доступа к Simargl по RPC-API

@@ -1,0 +1,4 @@
+-r ./coldstar.db.txt
+
+cython
+cymysql
