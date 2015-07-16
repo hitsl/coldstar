@@ -3,6 +3,7 @@
 from coldstar.eventsource import make_event
 
 from libcoldstar.plugin_helpers import ColdstarPlugin, Dependency
+from libcoldstar.utils import safe_int
 from twisted.internet.task import LoopingCall
 from twisted.python import log
 from twisted.python import failure
@@ -16,6 +17,8 @@ __created__ = '05.10.2014'
 
 
 class EventSourcedLock(object):
+    keep_alive = False
+
     def __init__(self, object_id, locker, request, ezekiel):
         self.object_id = object_id
         self.locker = locker
@@ -23,6 +26,7 @@ class EventSourcedLock(object):
         self.ezekiel = ezekiel
         self.lock = None
         self.lc = None
+        self.ka = LoopingCall(self.request.write, make_event(None, 'ping'))
 
     def try_acquire(self):
         lock = self.ezekiel.acquire_lock(self.object_id, self.locker)
@@ -47,12 +51,16 @@ class EventSourcedLock(object):
             self.request.write(make_event(self.lock, 'prolonged'))
 
     def start(self):
+        if isinstance(self.keep_alive, int):
+            self.ka.start(self.keep_alive)
         self.lc = LoopingCall(self.try_acquire)
-        self.lc.start(10, False)
+        self.lc.start(10)
 
     def stop(self):
         if self.lc:
             self.lc.stop()
+        if self.ka.running:
+            self.ka.stop()
         if self.lock:
             self.ezekiel.release_lock(self.object_id, self.lock.token)
 
@@ -65,6 +73,10 @@ class EzekielEventSourceResource(Resource, ColdstarPlugin):
     service = Dependency('coldstar.ezekiel')
     cas = Dependency('coldstar.castiel')
     web = Dependency('libcoldstar.web')
+
+    def __init__(self, config):
+        Resource.__init__(self)
+        self.keep_alive = safe_int(config.get('keep-alive', False))
 
     def render(self, request):
         """
@@ -101,6 +113,7 @@ class EzekielEventSourceResource(Resource, ColdstarPlugin):
                 request.write('')
 
                 ezl = EventSourcedLock(object_id, user_info[0], request, self.service)
+                ezl.keep_alive = self.keep_alive
                 request.notifyFinish().addBoth(onFinish)
                 ezl.start()
                 ez_lock.append(ezl)
@@ -120,4 +133,4 @@ class EzekielEventSourceResource(Resource, ColdstarPlugin):
 
 
 def make(config):
-    return EzekielEventSourceResource()
+    return EzekielEventSourceResource(config)
