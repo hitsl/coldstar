@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
-import json
 import datetime
-import blinker
 from libcoldstar.plugin_helpers import Dependency
-from libcoldstar.twisted_helpers import deferred_to_thread
 from libsimargl.client import SimarglClient
 from libsimargl.message import Message
 from sqlalchemy import Column, Integer, Text, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
+from twisted.internet.threads import deferToThread
 
 __author__ = 'viruzzz-kun'
 
@@ -78,63 +76,25 @@ class Client(SimarglClient):
         """
         if message.control and message.topic == 'mail:new':
             return self.new_mail(message)
-        elif message.control and message.topic == 'mail:last':
-            return self.get_mail(message)
 
     def new_mail(self, message):
-        @deferred_to_thread
-        def worker():
+        def worker_single():
             with self.db.context_session() as session:
                 obj = UserMail()
                 obj.from_message(message)
                 session.add(obj)
-                return obj.id
+            return obj.id
 
-        def on_finish(oid):
-            result = Message()
-            result.immediate = True
-            result.secondary = True
-            result.sender = message.sender
-            result.recipient = message.recipient
-            result.control = False
-            result.magic = message.magic
-            result.tags = message.tags
-            result.topic = 'mail'
-            result.data = {
-                'id': oid
-            }
-            blinker.signal('simargl.client:message').send(self, message=result)
+        def worker_envelope():
+            result = []
+            with self.db.context_session() as session:
+                for msg in message.data:
+                    obj = UserMail()
+                    obj.from_message(msg)
+                    session.add(obj)
+                    result.append(obj)
 
-        worker().addCallback(on_finish)
-
-    def get_mail(self, message):
-        recipient = message.sender
-
-        @deferred_to_thread
-        def worker():
-            if isinstance(message.data, dict):
-                count = message.data.get('count', 10)
-            else:
-                count = 10
-            message_list = []
-            with self.db.context_session(True) as session:
-                for mail in session.query(UserMail) \
-                        .filter(UserMail.recipient_id == recipient) \
-                        .order_by(UserMail.id.desc()) \
-                        .limit(count):
-                    msg = mail.as_message()
-                    msg.secondary = True
-                    message_list.append(msg)
-            return message_list
-
-        def on_finish(message_list):
-            result = Message()
-            result.secondary = True
-            result.recipient = recipient
-            result.topic = 'mail'
-            result.envelope = True
-            result.data = message_list
-            result.immediate = True
-            blinker.signal('simargl.client:message').send(self, message=result)
-
-        worker().addCallback(on_finish)
+        if message.envelope:
+            deferToThread(worker_envelope)
+        else:
+            deferToThread(worker_single)
