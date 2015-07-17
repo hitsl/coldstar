@@ -124,8 +124,8 @@ def data_from_message(message, recipient):
 
     if data['object_id'].startswith('hitsl.action.'):
         template = u'''
-        <p>Пациент: <b>{client_name}</b></p>
-        <p>Действие: <b>{action_name}</b></p>
+        <p>Пациент: <b><a href="{client_url}">{client_name}</a></b></p>
+        <p>Действие: <b><a href="{action_url}">{action_name}</a></b></p>
         <p>Причины уведомления:</p>
         <ul>{reasons_ul}</ul>
         '''
