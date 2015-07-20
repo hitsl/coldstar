@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
+import fnmatch
+import functools
 import json
 
 import blinker
 from autobahn.twisted.websocket import WebSocketServerProtocol
-from libcoldstar import as_json
+import itertools
+from twisted.python import log
+from libcoldstar.api_helpers import as_json
 
 
 __author__ = 'viruzzz-kun'
@@ -18,7 +22,19 @@ class WsProtocol(WebSocketServerProtocol):
 
     def __init__(self):
         self.cookies = {}
-        self.subscriptions = {}
+        self.subscriptions = set()
+
+    def process_cookies(self, request):
+        self.cookies = {}
+        cookie_headers = request.headers.get('cookie')
+        if not cookie_headers:
+            return
+        for cook in itertools.imap(unicode.lstrip, cookie_headers.split(b';')):
+            try:
+                k, v = cook.split(b'=', 1)
+                self.cookies[k] = v
+            except ValueError:
+                pass
 
     def onConnect(self, request):
         """
@@ -27,21 +43,13 @@ class WsProtocol(WebSocketServerProtocol):
         :type request: autobahn.websocket.protocol.ConnectionRequest
         :return:
         """
-        cookieheaders = request.headers.get('cookie')
-        if cookieheaders is not None:
-            for cookietxt in cookieheaders:
-                if cookietxt:
-                    for cook in cookietxt.split(b';'):
-                        cook = cook.lstrip()
-                        try:
-                            k, v = cook.split(b'=', 1)
-                            self.received_cookies[k] = v
-                        except ValueError:
-                            pass
+        log.msg('Achtung! Connection! %s', request.peer)
+        self.process_cookies(request)
         self.token = self.cookies.get(self.cookie_name)
         return WebSocketServerProtocol.onConnect(self, request)
 
     def onOpen(self):
+        log.msg('Achtung! Open!')
         self.factory.register_client(self)
         return WebSocketServerProtocol.onOpen(self)
 
@@ -53,6 +61,9 @@ class WsProtocol(WebSocketServerProtocol):
 
     def onMessage(self, payload, isBinary):
         WebSocketServerProtocol.onMessage(self, payload, isBinary)
+        if not isBinary:
+            payload = payload.decode('string_escape')
+        log.msg(payload, system="WebSocket DEBUG")
         msg = json.loads(payload)
         msg_type = msg['type']
         if msg_type == 'auth':  # В случае, если аутентифицируемся токеном вручную
@@ -95,43 +106,24 @@ class WsProtocol(WebSocketServerProtocol):
     def process_broadcast(self, msg):
         uri = msg['uri']
         data = msg['data']
-        self.broadcast_signal.send(self, uri=uri, data=data)
+        self.factory.broadcast(uri, data, self)
 
     def process_subscribe(self, msg):
         uri = msg['uri']
-        if uri in self.subscriptions:
-            return
-        self.del_prefixed_subscriptions(uri)
-        self.subscriptions[uri] = 1
+        self.subscriptions.add(uri)
 
     def process_ubsubscribe(self, msg):
         uri = msg['uri']
-        if uri in self.subscriptions:
-            del self.subscriptions[uri]
-        self.del_prefixed_subscriptions(uri)
+        self.subscriptions.remove(uri)
 
-    @broadcast_signal.connect
-    def broadcast(self, sender, **kwargs):
-        if sender is self:
-            return
-        uri = kwargs['uri']
-        path = uri.split('.')
-        process = False
-        while not process and path:
-            process = '.'.join(path) in self.subscriptions
-            path.pop()
-
-        if process:
+    def broadcast(self, uri, data):
+        match_fn = functools.partial(fnmatch.fnmatch, uri)
+        match_iter = itertools.imap(match_fn, self.subscriptions)
+        if any(match_iter):
             self.sendMessageJson({
                 'uri': uri,
-                'data': kwargs['data'],
+                'data': data,
             })
-
-    def del_prefixed_subscriptions(self, uri):
-        prefix = uri + '.'
-        for k in self.subscriptions.keys():
-            if k.startswith(prefix):
-                del self.subscriptions[k]
 
     def sendMessageJson(self, obj):
         self.sendMessage(as_json(obj))

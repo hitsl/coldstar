@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from autobahn.twisted.resource import WebSocketResource
 from twisted.web.static import Data
-
-from libcoldstar.web import AutoRedirectResource
-
+from libcoldstar.web.wrappers import AutoRedirectResource
 
 __author__ = 'viruzzz-kun'
 
