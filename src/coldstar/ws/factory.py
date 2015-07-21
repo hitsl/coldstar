@@ -3,6 +3,7 @@ import logging
 
 from autobahn.twisted.websocket import WebSocketServerFactory
 from twisted.internet import defer
+from libcoldstar.plugin_helpers import Dependency
 from .proto import WsProtocol
 from .resource import WsTest
 
@@ -59,13 +60,18 @@ class WsFactory(WebSocketServerFactory):
     def buildProtocol(self, addr):
         protocol = self.protocol()
         protocol.factory = self
+        protocol.service = self.service
         return protocol
 
     def bootstrap_test_functions(self):
         test_obj = WsTest()
-        self.register_function('test', test_obj.echo)
+        self.register_function('hitsl.test.echo', test_obj.echo)
 
-    def broadcast(self, uri, data, sender=None):
+    def broadcast(self, message):
+        self.send(message)
+
+    def send(self, message):
         for client in self.clients:
-            if client != sender:
-                client.broadcast(uri, data)
+            client.broadcast(message)
+
+

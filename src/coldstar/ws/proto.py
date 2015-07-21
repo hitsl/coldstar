@@ -2,22 +2,21 @@
 import fnmatch
 import functools
 import json
-
-import blinker
-from autobahn.twisted.websocket import WebSocketServerProtocol
 import itertools
-from twisted.python import log
-from libcoldstar.api_helpers import as_json
 
+from autobahn.twisted.websocket import WebSocketServerProtocol
+from twisted.python import log
+
+from libcoldstar.api_helpers import as_json
+from libsimargl.message import Message
 
 __author__ = 'viruzzz-kun'
 
 
 class WsProtocol(WebSocketServerProtocol):
     cookie_name = 'CastielAuthToken'
-    broadcast_signal = blinker.signal('websocket.broadcast')
-    session = None
     factory = None
+    service = None
     token = None
 
     def __init__(self):
@@ -54,8 +53,6 @@ class WsProtocol(WebSocketServerProtocol):
         return WebSocketServerProtocol.onOpen(self)
 
     def onClose(self, wasClean, code, reason):
-        if self.session:
-            self.session.close_session()
         self.factory.unregister_client(self)
         return WebSocketServerProtocol.onClose(self, wasClean, code, reason)
 
@@ -104,26 +101,22 @@ class WsProtocol(WebSocketServerProtocol):
         d.addCallbacks(_cb, _eb)
 
     def process_broadcast(self, msg):
-        uri = msg['uri']
-        data = msg['data']
-        self.factory.broadcast(uri, data, self)
+        message = Message.from_json(msg)
+        self.service.dispatch_message(message)
 
     def process_subscribe(self, msg):
         uri = msg['uri']
         self.subscriptions.add(uri)
 
-    def process_ubsubscribe(self, msg):
+    def process_unsubscribe(self, msg):
         uri = msg['uri']
         self.subscriptions.remove(uri)
 
-    def broadcast(self, uri, data):
-        match_fn = functools.partial(fnmatch.fnmatch, uri)
+    def broadcast(self, message):
+        match_fn = functools.partial(fnmatch.fnmatch, message.uri)
         match_iter = itertools.imap(match_fn, self.subscriptions)
         if any(match_iter):
-            self.sendMessageJson({
-                'uri': uri,
-                'data': data,
-            })
+            self.sendMessageJson(message)
 
     def sendMessageJson(self, obj):
         self.sendMessage(as_json(obj))

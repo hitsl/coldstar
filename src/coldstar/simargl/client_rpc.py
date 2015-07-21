@@ -46,7 +46,7 @@ class Client(SimarglClient, Resource):
         message = Message.from_json(data)
 
         from twisted.internet import reactor
-        reactor.callLater(0, blinker.signal('simargl.client:message').send, self, message=message)
+        reactor.callLater(0, self.parent.dispatch_message, self, message=message)
 
         request.setHeader('content-type', 'application/json; charset=utf-8')
         return as_json({

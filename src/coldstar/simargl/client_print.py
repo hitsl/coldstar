@@ -17,6 +17,6 @@ class Client(SimarglClient):
         SimarglClient.startService(self)
 
     def send(self, message):
-        if message.topic != 'heartbeat':
+        if message.uri != 'heartbeat':
             log.msg(as_json(message), system='SimarglPrintClient')
 

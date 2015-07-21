@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import ConfigParser
+from twisted.python import log
 
 from libcoldstar.plugin_helpers import connect_to_signal, ColdstarPlugin, Dependency
 from twisted.application.service import MultiService
 from twisted.python.log import callWithContext
+from libsimargl.message import Message
 
 __author__ = 'viruzzz-kun'
 
@@ -28,8 +30,7 @@ class Simargl(MultiService, ColdstarPlugin):
             client.setServiceParent(self)
             self.clients[name] = client
 
-    @connect_to_signal('simargl.client:message')
-    def message_received(self, client, message):
+    def dispatch_message(self, client, message):
         """
         Зднсь должен происходить некоторый роутинг
         :type client: coldstar.simargl.client.SimarglClient
@@ -49,3 +50,4 @@ class Simargl(MultiService, ColdstarPlugin):
         def log_func():
             print(message % args)
         callWithContext({'system': "Simargl"}, log_func)
+

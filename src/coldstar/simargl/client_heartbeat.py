@@ -14,12 +14,17 @@ __author__ = 'viruzzz-kun'
 class Client(SimarglClient):
     def startService(self):
         SimarglClient.startService(self)
-        LoopingCall(self.loop).start(10)
+        self.lc = LoopingCall(self.loop).start(10)
+
+    def stopService(self):
+        SimarglClient.stopService(self)
+        if hasattr(self, 'lc'):
+            self.lc.stop()
 
     def loop(self):
         message = Message()
         message.control = True
-        message.topic = 'heartbeat'
+        message.uri = 'heartbeat'
         message.data = {'ts': time.time()}
-        blinker.signal('simargl.client:message').send(self, message=message)
+        self.parent.dispatch_message(self, message=message)
 

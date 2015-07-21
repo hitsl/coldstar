@@ -49,7 +49,7 @@ class UserMail(Base):
 
     def as_message(self):
         message = Message()
-        message.topic = 'mail'
+        message.uri = 'mail'
         message.sender = self.sender_id
         message.recipient = self.recipient_id
         message.tags = set()
@@ -74,7 +74,7 @@ class Client(SimarglClient):
         :param message:
         :return:
         """
-        if message.control and message.topic == 'mail:new':
+        if message.control and message.uri == 'mail:new':
             return self.new_mail(message)
 
     def new_mail(self, message):

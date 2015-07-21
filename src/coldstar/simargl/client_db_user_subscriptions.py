@@ -34,11 +34,11 @@ class Client(SimarglClient):
         :param message:
         :return:
         """
-        if message.control and message.topic == 'subscription:add':
+        if message.control and message.uri == 'subscription:add':
             return self.add_subscription(message)
-        elif message.control and message.topic == 'subscription:del':
+        elif message.control and message.uri == 'subscription:del':
             return self.del_subscription(message)
-        elif message.control and message.topic == 'subscription:notify':
+        elif message.control and message.uri == 'subscription:notify':
             self.mail_notification(message)
 
     def add_subscription(self, message):
@@ -75,7 +75,7 @@ class Client(SimarglClient):
                     msg.recipient = o.person_id
                     msg.secondary = True
                     msg.immediate = True
-                    msg.topic = 'mail:new'
+                    msg.uri = 'mail:new'
                     msg.ctrl = True
                     data = data_from_message(message, str(o.person_id))
                     data['folder'] = 'system'
@@ -90,10 +90,10 @@ class Client(SimarglClient):
             result.recipient = None
             result.sender = None
             result.envelope = True
-            result.topic = 'mail:new'
+            result.uri = 'mail:new'
             result.data = message_list
             result.immediate = True
-            blinker.signal('simargl.client:message').send(self, message=result)
+            self.parent.dispatch_message(self, message=result)
 
         def process_single():
             return worker(envelope)

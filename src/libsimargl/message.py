@@ -9,7 +9,7 @@ class Message(object):
     secondary = False  # Вторичное сообщение: не пишется в лог
     control = False    # Управляющее сообщение: для управления клиентами
     magic = None       # Магическое число для RPC
-    topic = None       # тема сообщения
+    uri = None         # тема сообщения
     sender = None      # User ID отправителя
     recipient = None   # User ID получателя
     envelope = False   # Пачка
@@ -28,7 +28,7 @@ class Message(object):
             's': bool(self.secondary),
             'envelope': bool(self.envelope),
             'ctrl': self.control,
-            'topic': self.topic,
+            'uri': self.uri,
             'magic': self.magic,
             'sender': self.sender,
             'recipient': self.recipient,
@@ -45,7 +45,7 @@ class Message(object):
     def merge_with_dict(self, j):
         self.control = j.get('ctrl', False)
         self.magic = j.get('magic', None)
-        self.topic = j.get('topic', None)
+        self.uri = j.get('uri', None)
         self.sender = j.get('sender')
         self.recipient = j.get('recipient')
         self.tags = set(j.get('tags', []))
