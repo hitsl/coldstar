@@ -2,6 +2,7 @@
 import datetime
 import json
 import functools
+from Queue import Queue
 
 from twisted.internet import defer
 from libcoldstar.excs import SerializableBaseException, ExceptionWrapper
@@ -92,3 +93,94 @@ def get_args(request):
 def transfer_fields(dest, src, fields):
     for name in fields:
         setattr(dest, name, getattr(src, name))
+
+
+class ThreadWrapper(object):
+    def __init__(self, name=None):
+        self.q = Queue()
+        self.thread = None
+        self.name = name
+
+    def _cb(self, deferred, result):
+        """
+        Callback to be run on deferred function success
+        This function is run in Thread
+
+        :type deferred: twisted.internet.defer.Deferred
+        :param deferred: Deferred with callback
+        :param result: result to pass through
+        :return:
+        """
+        from twisted.internet import reactor
+
+        self.q.task_done()
+        reactor.callFromThread(deferred.callback, result)
+        return result
+
+    def _eb(self, deferred, failure):
+        """
+        Errback to be run on deferred function fail
+        This function is run in Thread
+
+        :type deferred: twisted.internet.defer.Deferred
+        :param deferred: Deferred with errback
+        :param failure: failure to pass through
+        :return:
+        """
+        from twisted.internet import reactor
+
+        self.q.task_done()
+        reactor.callFromThread(deferred.errback, failure)
+        return failure
+
+    def _run(self):
+        """
+        Wrapper's main loop, target of the Thread.
+        This function is run in Thread
+
+        :return:
+        """
+        while 1:
+            func, args, kwargs, deferred = self.q.get(timeout=1)
+            if not func:
+                self.thread = None
+                break
+
+            defer.maybeDeferred(func, *args, **kwargs)\
+                .addCallbacks(self._cb, self._eb, callbackArgs=(deferred,), errbackArgs=(deferred,))
+
+    def call(self, func, *args, **kwargs):
+        """
+        Call function in Thread's call queue
+        :param func: callable
+        :return: Deferred which fires when function execution is done
+        """
+        deferred = defer.Deferred()
+        self.q.put((func, args, kwargs, deferred))
+        return deferred
+
+    def start(self):
+        """
+        Start ThreadWrapper
+        :return:
+        """
+        from threading import Thread
+        self.thread = Thread(target=self._run, name=self.name)
+
+    def stop(self):
+        """
+        Stop ThreadWrapper
+        :return:
+        """
+        self.q.put((None, None, None, None))
+
+    def synchronize(self, func):
+        """
+        Decorate function to be called inside this ThreadWrapper
+        :param func: function
+        :return: decorated function
+        """
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            return self.call(func, *args, **kwargs)
+        return wrapper
