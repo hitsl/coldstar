@@ -70,10 +70,12 @@ class Client(SimarglClient, Resource):
                 request.notifyFinish().addBoth(onFinish)
                 log.msg("Connection from %s established" % request.getClientIP(), system="Event Source")
 
-        token = request.getCookie('CastielAuthToken')
-        if not token:
+        hex_token = request.getCookie('CastielAuthToken')
+        if not hex_token:
             request.setResponseCode(401)
             return ''
+
+        token = hex_token.decode('hex')
 
         self.cas.check_token(token).addBoth(onUser)
         return NOT_DONE_YET

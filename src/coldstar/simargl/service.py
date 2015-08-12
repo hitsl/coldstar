@@ -40,13 +40,17 @@ class Simargl(MultiService, ColdstarPlugin):
         :param message:
         :return:
         """
-        name = client.name
-        if client is not self.clients.get(name):
-            log.msg('Name mismatch', system="Simargl")
-            return
+        if client is not None:
+            name = client.name
+            if client is not self.clients.get(name):
+                log.msg('Name mismatch', system="Simargl")
+                return
         if self.uuid.bytes in message.hops:
             # log.msg('Short circuit detected', system="Simargl")
             return
         message.hops.append(self.uuid.bytes)
         for recipient in self.clients.itervalues():
             recipient.send(message)
+
+    def inject_message(self, message):
+        return self.message_received(None, message)

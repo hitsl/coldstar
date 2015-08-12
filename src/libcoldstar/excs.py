@@ -13,6 +13,9 @@ class SerializableBaseException(Exception):
             'message': self.message,
         }
 
+    def __unicode__(self):
+        return u'<%s> "%s"' % (self.__class__.__name__, self.message)
+
 
 class MethodNotFoundException(SerializableBaseException):
     def __init__(self, method_name):

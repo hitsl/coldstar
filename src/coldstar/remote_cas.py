@@ -48,7 +48,7 @@ class RemoteCas(ColdstarPlugin):
                 return j['user_id'], j['deadline']
             return defer.fail(EExpiredToken(token))
 
-        send = {'token': token}
+        send = {'token': token.encode('hex')}
         if prolong:
             send['prolong'] = True
 

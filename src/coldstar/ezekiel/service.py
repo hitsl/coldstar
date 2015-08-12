@@ -87,7 +87,7 @@ class EzekielService(Service, ColdstarPlugin):
     signal_name = 'coldstar.ezekiel'
     short_timeout = 60
     long_timeout = 3600
-    remote_simargl = Dependency('libsimarglrpc', optional=True)
+    simargl = Dependency('coldstar.simargl', optional=True)
 
     def __init__(self, config):
         self.short_timeout = config.get('short_timeout', 60)
@@ -130,8 +130,14 @@ class EzekielService(Service, ColdstarPlugin):
                 if delayed_call and delayed_call.active():
                     delayed_call.cancel()
 
-                if self.remote_simargl:
-                    self.remote_simargl.notify_ezekiel_lock_released(object_id)
+                if self.simargl:
+                    from libsimargl.message import Message
+                    message = Message()
+                    message.topic = 'ezekiel.lock.release'
+                    message.data = {
+                        'object_id': object_id
+                    }
+                    self.simargl.inject_message(message)
 
                 log.msg('lock for %s released' % object_id, system="Ezekiel")
                 logging.info('lock for %s released', object_id)
