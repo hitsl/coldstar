@@ -16,6 +16,7 @@ class Message(object):
 
     def __init__(self):
         self.tags = set()
+        self.hops = []
         self.data = None
 
     def make_magic(self):
@@ -34,6 +35,7 @@ class Message(object):
             'recipient': self.recipient,
             'tags': sorted(self.tags),
             'data': self.data,
+            'hops': self.hops,
         }
 
     @classmethod
@@ -53,3 +55,4 @@ class Message(object):
         self.immediate = j.get('i', True)
         self.secondary = j.get('s', False)
         self.envelope = j.get('envelope', False)
+        self.hops = j.get('hops', [])

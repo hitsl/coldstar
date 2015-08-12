@@ -3,6 +3,7 @@ import datetime
 import json
 import functools
 from Queue import Queue
+from twisted.application.service import Service
 
 from twisted.internet import defer
 from libcoldstar.excs import SerializableBaseException, ExceptionWrapper
@@ -95,7 +96,7 @@ def transfer_fields(dest, src, fields):
         setattr(dest, name, getattr(src, name))
 
 
-class ThreadWrapper(object):
+class ThreadWrapper(Service):
     def __init__(self, name=None):
         self.q = Queue()
         self.thread = None
@@ -159,20 +160,22 @@ class ThreadWrapper(object):
         self.q.put((func, args, kwargs, deferred))
         return deferred
 
-    def start(self):
+    def startService(self):
         """
         Start ThreadWrapper
         :return:
         """
+        Service.startService(self)
         from threading import Thread
         self.thread = Thread(target=self._run, name=self.name)
 
-    def stop(self):
+    def stopService(self):
         """
         Stop ThreadWrapper
         :return:
         """
         self.q.put((None, None, None, None))
+        Service.stopService(self)
 
     def synchronize(self, func):
         """

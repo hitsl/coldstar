@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import ConfigParser
+import uuid
+from twisted.python import log
 
 from libcoldstar.plugin_helpers import connect_to_signal, ColdstarPlugin, Dependency
 from twisted.application.service import MultiService
-from twisted.python.log import callWithContext
 
 __author__ = 'viruzzz-kun'
 
@@ -15,6 +16,7 @@ class Simargl(MultiService, ColdstarPlugin):
 
     def __init__(self, config):
         MultiService.__init__(self)
+        self.uuid = uuid.uuid4()
         self.clients = {}
         with open(config['config'], 'rt') as fp:
             parsed_config = ConfigParser.ConfigParser()
@@ -40,12 +42,11 @@ class Simargl(MultiService, ColdstarPlugin):
         """
         name = client.name
         if client is not self.clients.get(name):
-            self.log('Name mismatch')
+            log.msg('Name mismatch', system="Simargl")
             return
+        if self.uuid.bytes in message.hops:
+            # log.msg('Short circuit detected', system="Simargl")
+            return
+        message.hops.append(self.uuid.bytes)
         for recipient in self.clients.itervalues():
             recipient.send(message)
-
-    def log(self, message, *args, **kwargs):
-        def log_func():
-            print(message % args)
-        callWithContext({'system': "Simargl"}, log_func)
