@@ -23,6 +23,8 @@ def proxiedLogFormatter(timestamp, request):
         """
         if request.requestHeaders.hasHeader('x-forwarded-for'):
             return request.requestHeaders.getRawHeaders(b"x-forwarded-for")[0].split(b",")[0].strip()
+        if request.requestHeaders.hasHeader('x-real-ip'):
+            return request.requestHeaders.getRawHeaders(b"x-real-ip")[0].split(b",")[0].strip()
         return request.getClientIP()
 
     referrer = _escape(request.getHeader(b"referer") or b"-")
