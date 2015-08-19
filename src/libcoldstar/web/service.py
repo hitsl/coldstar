@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import re
 from libcoldstar.plugin_helpers import ColdstarPlugin, Dependency
 from twisted.application.service import MultiService
 
 __author__ = 'viruzzz-kun'
 __created__ = '04.04.2015'
+
+
+re_referrer_origin = re.compile(u'(?P<origin>\Ahttps?://[\.\w\d]+(:\d+)?)/.*', (re.U | re.I))
 
 
 class WebService(MultiService, ColdstarPlugin):
@@ -35,6 +39,8 @@ class WebService(MultiService, ColdstarPlugin):
         ))
 
         self.cors_domain = config.get('cors-domain', 'http://127.0.0.1:5000/')
+        allowed_domains = set(filter(None, config.get('allowed-domains', '').replace(',', ' ').split(' ')))
+        self.allowed_domains = set(allowed_domains) | {self.cors_domain}
 
         service = strports.service(description, site, reactor=reactor)
         service.setServiceParent(self)
@@ -44,7 +50,27 @@ class WebService(MultiService, ColdstarPlugin):
         self.service = service
 
     def crossdomain(self, request, allow_credentials=False):
-        request.setHeader('Access-Control-Allow-Origin', self.cors_domain)
+        """
+        :type request: libcoldstar.web.wrappers.TemplatedRequest
+        :param request:
+        :param allow_credentials:
+        :return:
+        """
+        print('request to: %s' % request.uri)
+        domain = self.cors_domain
+        uris = request.requestHeaders.getRawHeaders('Referer')
+        if uris:
+            uri = uris[0]
+            print('Got URI = "%s"' % uri)
+            match = re_referrer_origin.match(uri)
+            if match:
+                candidate_domain = match.groupdict()['origin']
+                print('URI matched as "%s"' % candidate_domain)
+                if candidate_domain in self.allowed_domains:
+                    domain = candidate_domain
+                    print('Domain set!')
+
+        request.setHeader('Access-Control-Allow-Origin', domain)
         if allow_credentials:
             request.setHeader('Access-Control-Allow-Credentials', 'true')
         if request.method == 'OPTIONS' and request.requestHeaders.hasHeader('Access-Control-Request-Method'):
