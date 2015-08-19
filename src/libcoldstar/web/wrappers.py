@@ -4,18 +4,24 @@ from urllib import urlencode
 
 import jinja2
 from jinja2.exceptions import TemplateNotFound
-from libcoldstar.plugin_helpers import ColdstarPlugin, Dependency
-from twisted.python import components
-from twisted.python.components import registerAdapter, Componentized
-from twisted.web.resource import Resource
-from twisted.web.server import Request, Session, Site
-from twisted.web.static import File
 from zope.interface import implementer
+
+from twisted.internet import defer
+from twisted.python import components, reflect, log
+from twisted.python.components import registerAdapter, Componentized
+from twisted.python.compat import intToBytes
+
+from twisted.web import resource, html, http, error, microdom
+from twisted.web.server import Request, Session, Site, NOT_DONE_YET, supportedMethods
+from twisted.web.static import File
+
+from ..plugin_helpers import ColdstarPlugin, Dependency
 from .interfaces import ITemplatedSite, IWebSession, ITemplatedRequest
 
 
 __author__ = 'viruzzz-kun'
 __created__ = '08.02.2015'
+
 
 @implementer(ITemplatedRequest)
 class TemplatedRequest(Request):
@@ -93,6 +99,97 @@ class TemplatedRequest(Request):
             return self.requestHeaders.getRawHeaders(b"x-real-ip")[0].split(b",")[0].strip()
         return Request.getClientIP(self)
 
+    # This allows us to use Deferred as return value from Resource.render(request)
+    @defer.inlineCallbacks
+    def render(self, resrc):
+        """
+        Ask a resource to render itself.
+
+        @param resrc: a L{twisted.web.resource.IResource}.
+        """
+        try:
+            body = yield defer.maybeDeferred(resrc.render, self)
+        except error.UnsupportedMethod as e:
+            allowedMethods = e.allowedMethods
+            if (self.method == b"HEAD") and (b"GET" in allowedMethods):
+                # We must support HEAD (RFC 2616, 5.1.1).  If the
+                # resource doesn't, fake it by giving the resource
+                # a 'GET' request and then return only the headers,
+                # not the body.
+                log.msg("Using GET to fake a HEAD request for %s" %
+                        (resrc,))
+                self.method = b"GET"
+                self._inFakeHead = True
+                body = resrc.render(self)
+
+                if body is NOT_DONE_YET:
+                    log.msg("Tried to fake a HEAD request for %s, but "
+                            "it got away from me." % resrc)
+                    # Oh well, I guess we won't include the content length.
+                else:
+                    self.setHeader(b'content-length', intToBytes(len(body)))
+
+                self._inFakeHead = False
+                self.method = b"HEAD"
+                self.write(b'')
+                self.finish()
+                return
+
+            if self.method in (supportedMethods):
+                # We MUST include an Allow header
+                # (RFC 2616, 10.4.6 and 14.7)
+                self.setHeader('Allow', ', '.join(allowedMethods))
+                s = ('''Your browser approached me (at %(URI)s) with'''
+                     ''' the method "%(method)s".  I only allow'''
+                     ''' the method%(plural)s %(allowed)s here.''' % {
+                         'URI': microdom.escape(self.uri),
+                         'method': self.method,
+                         'plural': ((len(allowedMethods) > 1) and 's') or '',
+                         'allowed': ', '.join(allowedMethods)
+                     })
+                epage = resource.ErrorPage(http.NOT_ALLOWED,
+                                           "Method Not Allowed", s)
+                body = epage.render(self)
+            else:
+                epage = resource.ErrorPage(
+                    http.NOT_IMPLEMENTED, "Huh?",
+                    "I don't know how to treat a %s request." %
+                    (microdom.escape(self.method.decode("charmap")),))
+                body = epage.render(self)
+        except Exception as e:
+            body = resource.ErrorPage(
+                http.INTERNAL_SERVER_ERROR,
+                "Request failed",
+                "Request: " + html.PRE(reflect.safe_repr(self)) + "<br />" +
+                "Resource: " + html.PRE(reflect.safe_repr(resrc)) + "<br />" +
+                "Value: " + html.PRE(reflect.safe_repr(e))).render(self)
+
+        if body == NOT_DONE_YET:
+            return
+        if not isinstance(body, bytes):
+            body = resource.ErrorPage(
+                http.INTERNAL_SERVER_ERROR,
+                "Request did not return bytes",
+                "Request: " + html.PRE(reflect.safe_repr(self)) + "<br />" +
+                "Resource: " + html.PRE(reflect.safe_repr(resrc)) + "<br />" +
+                "Value: " + html.PRE(reflect.safe_repr(body))).render(self)
+
+        if self.method == b"HEAD":
+            if len(body) > 0:
+                # This is a Bad Thing (RFC 2616, 9.4)
+                log.msg("Warning: HEAD request %s for resource %s is"
+                        " returning a message body."
+                        "  I think I'll eat it."
+                        % (self, resrc))
+                self.setHeader(b'content-length',
+                               intToBytes(len(body)))
+            self.write(b'')
+        else:
+            self.setHeader(b'content-length',
+                           intToBytes(len(body)))
+            self.write(body)
+        self.finish()
+
 
 @implementer(IWebSession)
 class WebSession(components.Componentized):
@@ -141,10 +238,10 @@ class TemplatedSite(Site, ColdstarPlugin):
         self.__jinja_loader.searchpath.append(path)
 
 
-class DefaultRootResource(Resource):
+class DefaultRootResource(resource.Resource):
     def __init__(self):
         from twisted.web.static import Data
-        Resource.__init__(self)
+        resource.Resource.__init__(self)
         self.putChild('', Data(u"""
 <!DOCTYPE html>
 <html>
@@ -154,7 +251,7 @@ a, a:visited, a:hover { color: #fff; }</style></head>
 </html>""".encode('utf-8'), 'text/html; charset=utf-8'))
 
 
-class AutoRedirectResource(Resource):
+class AutoRedirectResource(resource.Resource):
     def render(self, request):
         """ Redirect to the resource with a trailing slash if it was omitted
         :type request: TemplatedRequest
