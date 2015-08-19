@@ -56,19 +56,14 @@ class WebService(MultiService, ColdstarPlugin):
         :param allow_credentials:
         :return:
         """
-        print('request to: %s' % request.uri)
         domain = self.cors_domain
-        uris = request.requestHeaders.getRawHeaders('Referer')
-        if uris:
-            uri = uris[0]
-            print('Got URI = "%s"' % uri)
+        uri = request.getHeader('Referer')
+        if uri:
             match = re_referrer_origin.match(uri)
             if match:
                 candidate_domain = match.groupdict()['origin']
-                print('URI matched as "%s"' % candidate_domain)
                 if candidate_domain in self.allowed_domains:
                     domain = candidate_domain
-                    print('Domain set!')
 
         request.setHeader('Access-Control-Allow-Origin', domain)
         if allow_credentials:
