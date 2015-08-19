@@ -86,6 +86,13 @@ class TemplatedRequest(Request):
             return content_type[0].split(';', 1)[0].split('/')
         return None, None
 
+    def getClientIP(self):
+        if self.requestHeaders.hasHeader('x-forwarded-for'):
+            return self.requestHeaders.getRawHeaders(b"x-forwarded-for")[0].split(b",")[0].strip()
+        if self.requestHeaders.hasHeader('x-real-ip'):
+            return self.requestHeaders.getRawHeaders(b"x-real-ip")[0].split(b",")[0].strip()
+        return Request.getClientIP(self)
+
 
 @implementer(IWebSession)
 class WebSession(components.Componentized):
