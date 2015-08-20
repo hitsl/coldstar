@@ -8,7 +8,7 @@ __author__ = 'viruzzz-kun'
 __created__ = '04.04.2015'
 
 
-re_referrer_origin = re.compile(u'(?P<origin>\Ahttps?://[\.\w\d]+(:\d+)?)/.*', (re.U | re.I))
+re_referrer_origin = re.compile(u'(?P<origin>\Ahttps?://[\.\w\d\-]+(:\d+)?)/.*', (re.U | re.I))
 
 
 class WebService(MultiService, ColdstarPlugin):
