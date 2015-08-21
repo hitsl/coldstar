@@ -29,7 +29,7 @@ class Errand(Base):
     event_id = Column(Integer, index=True)
     result = Column(Text, nullable=False)
     readingDate = Column(DateTime)
-    status = Column(Integer, nullable=False)
+    status_id = Column(Integer, nullable=False)
 
     def __json__(self):
         return {
