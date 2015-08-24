@@ -57,7 +57,7 @@ class Client(SimarglClient, Resource):
         user = request.getUser()
         if user:
             return defer.succeed(user)
-        token = request.getCookie('CastielAuthToken')
+        token = request.getCookie('authToken')
         if token:
             def _cb(user_info):
                 request.user = user_info[0]

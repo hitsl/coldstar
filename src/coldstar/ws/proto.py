@@ -14,7 +14,7 @@ __author__ = 'viruzzz-kun'
 
 
 class WsProtocol(WebSocketServerProtocol):
-    cookie_name = 'CastielAuthToken'
+    cookie_name = 'authToken'
     broadcast_signal = blinker.signal('websocket.broadcast')
     session = None
     factory = None
@@ -38,7 +38,7 @@ class WsProtocol(WebSocketServerProtocol):
 
     def onConnect(self, request):
         """
-        Обработчик соединения по WebSocket-протоколу. Нужен для того, чтобы вытащить печеньку 'CastielAuthToken'
+        Обработчик соединения по WebSocket-протоколу. Нужен для того, чтобы вытащить печеньку 'authToken'
         :param request: Request
         :type request: autobahn.websocket.protocol.ConnectionRequest
         :return:

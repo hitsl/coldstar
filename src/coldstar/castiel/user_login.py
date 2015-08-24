@@ -24,7 +24,7 @@ class CastielLoginResource(Resource, ColdstarPlugin):
     isLeaf = True
 
     service = Dependency('coldstar.castiel')
-    cookie_name = 'CastielAuthToken'
+    cookie_name = 'authToken'
     get_cookie_domain = None
 
     @defer.inlineCallbacks
