@@ -4,6 +4,7 @@ from urllib import urlencode
 
 import jinja2
 from jinja2.exceptions import TemplateNotFound
+from twisted.python.log import callWithContext
 from zope.interface import implementer
 
 from twisted.internet import defer
@@ -157,6 +158,9 @@ class TemplatedRequest(Request):
                     (microdom.escape(self.method.decode("charmap")),))
                 body = epage.render(self)
         except Exception as e:
+            import traceback
+            callWithContext({'system': 'RequestError'}, traceback.print_exc)
+
             body = resource.ErrorPage(
                 http.INTERNAL_SERVER_ERROR,
                 "Request failed",
