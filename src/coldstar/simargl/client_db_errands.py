@@ -3,7 +3,8 @@ import datetime
 from libcoldstar.plugin_helpers import Dependency
 from libsimargl.client import SimarglClient
 from libsimargl.message import Message
-from sqlalchemy import Column, Integer, Text, String, DateTime
+from sqlalchemy import Column, Integer, Text, String, DateTime, Unicode, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from twisted.internet.threads import deferToThread
 
@@ -29,7 +30,9 @@ class Errand(Base):
     event_id = Column(Integer, index=True)
     result = Column(Text, nullable=False)
     readingDate = Column(DateTime)
-    status_id = Column(Integer, nullable=False)
+    status_id = Column(ForeignKey('rbErrandStatus.id'), nullable=False)
+
+    status = relationship('rbErrandStatus')
 
     def __json__(self):
         return {
@@ -53,6 +56,7 @@ class Errand(Base):
         self.number = number
         self.event_id = message.data.get('event_id', '')
         self.plannedExecDate = message.data.get('planned_exec_date', datetime.datetime.now())
+        self.status_id = message.data.get('status').get('id', 1)
 
     def as_message(self):
         message = Message()
@@ -159,3 +163,12 @@ def _get_errand_number_from_counter(prefix, value, separator):
                     if val:
                         prefix.append(val)
     return separator.join(prefix + ['%d' % value])
+
+
+class rbErrandStatus(Base):
+    __tablename__ = u'rbErrandStatus'
+    _table_description = u'статусы поручений'
+
+    id = Column(Integer, primary_key=True)
+    code = Column(Unicode(16), index=True, nullable=False)
+    name = Column(Unicode(64), nullable=False)
