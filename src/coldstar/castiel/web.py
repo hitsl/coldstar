@@ -21,7 +21,7 @@ class CastielWebResource(AutoRedirectResource, ColdstarPlugin):
     def __init__(self, config):
         Resource.__init__(self)
         self.config = config
-        self.cookie_name = config.get('cookie_name', 'CastielAuthToken')
+        self.cookie_name = config.get('cookie_name', 'authToken')
         self.cors_domain = config.get('cors_domain', '*')
         self.default_cookie_domain = config.get('cookie_domain', 'localhost')
         self.domain_map = config.get('domain_map', {})

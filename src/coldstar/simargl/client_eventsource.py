@@ -70,7 +70,7 @@ class Client(SimarglClient, Resource):
                 request.notifyFinish().addBoth(onFinish)
                 log.msg("Connection from %s established" % request.getClientIP(), system="Event Source")
 
-        hex_token = request.getCookie('CastielAuthToken')
+        hex_token = request.getCookie('authToken')
         if not hex_token:
             request.setResponseCode(401)
             return ''

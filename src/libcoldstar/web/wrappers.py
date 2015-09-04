@@ -73,7 +73,7 @@ class TemplatedRequest(Request):
         cas = getattr(self.site, 'cas', None)
         if cas is not None:
             # FIXME: Cookie name should be configurable
-            token_hex = self.getCookie('CastielAuthToken')
+            token_hex = self.getCookie('authToken')
             if not token_hex:
                 return
             token = token_hex.decode('hex')

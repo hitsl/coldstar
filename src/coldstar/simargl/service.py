@@ -45,10 +45,10 @@ class Simargl(MultiService, ColdstarPlugin):
             if client is not self.clients.get(name):
                 log.msg('Name mismatch', system="Simargl")
                 return
-        if self.uuid.bytes in message.hops:
+        if self.uuid.hex in message.hops:
             # log.msg('Short circuit detected', system="Simargl")
             return
-        message.hops.append(self.uuid.bytes)
+        message.hops.append(self.uuid.hex)
         for recipient in self.clients.itervalues():
             recipient.send(message)
 

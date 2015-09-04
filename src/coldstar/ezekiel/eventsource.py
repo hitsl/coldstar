@@ -119,7 +119,7 @@ class EzekielEventSourceResource(Resource, ColdstarPlugin):
                 ez_lock.append(ezl)
                 log.msg("Connection from %s established" % request.getClientIP(), system="Ezekiel Event Source")
 
-        token = request.getCookie('CastielAuthToken')
+        token = request.getCookie('authToken')
         if not token:
             request.setResponseCode(401)
             return ''
