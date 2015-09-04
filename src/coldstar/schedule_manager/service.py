@@ -24,27 +24,26 @@ class ScheduleManager(Service, ColdstarPlugin):
     re_cron = re.compile(ur'(.+?)\s+(.+?)\s+(.+?)\s+(.+?)\s+(.+?)')
     re_task = re.compile(ur'((\w+)(\s*\((.*?)\))?)')
 
-    def __init__(self):
-        self.schedules = {}
+    def __init__(self, config):
         self.task_functions = {}
-        self.started = False
-        for key, func in self.__class__.__dict__.iteritems():
-            if key.startswith('task_'):
-                self.task_functions[key[5:]] = func
-        self.config = {
-            'schedule': [CronTask({'cron': '0 * * * *', 'task': 'errand_statuses'})]
-        }  # вообще надо будет настройки в бд хранить
-        self.set_config(self.config)
+        mixin_names = config.get('mixins', '').split(' ')
+        print(mixin_names)
+        for mn in mixin_names:
+            print 'Checking', mn
+            module_name, func_name = mn.rsplit('.', 1)
+            module = __import__(module_name, globals(), locals(), [func_name])
+            func = getattr(module, func_name)
+            self.task_functions[func_name] = func
+        self.schedules = {}
+        self.set_config()
 
-    def set_config(self, config):
-        self.config = config
+    def set_config(self):
         from libsch_manager.txscheduling.cron import parseCronEntry, CronSchedule
         from libsch_manager.txscheduling.task import ScheduledCall
 
-        was_started = self.started
         self.stopService()
         self.schedules = {}
-        for s in config.get('schedule', []):
+        for s in [CronTask({'cron': '0 * * * *', 'task': 'errand_statuses'})]:
             # log.debug(u'Загрузка строки расписания: "%s %s"', s.cron, s.task)
             cron = s.cron
             if cron.startswith('@'):
@@ -86,18 +85,15 @@ class ScheduleManager(Service, ColdstarPlugin):
             self.schedules[full_name] = CronSchedule(schedule), sc
         #     log.info(u'Задача "%s" поставлена в очередь', task_match.group(0))
         # log.info(u'Загрузка задач завершена')
-        # self.startService()
 
     def startService(self, now=True):
         # log.debug(u'Запуск службы расписаний')
         for name, (schedule, call) in self.schedules.iteritems():
-            if not self.started:
-                call.start(schedule, now=now)
-        self.started = True
+            print(name, schedule, call)
+            call.start(schedule, now=now)
 
     def stopService(self):
         # log.debug(u'Останов службы расписаний')
-        self.started = False
         from twisted.internet.error import AlreadyCancelled, AlreadyCalled
         for name, (schedule, call) in self.schedules.iteritems():
             try:
@@ -106,16 +102,3 @@ class ScheduleManager(Service, ColdstarPlugin):
                 pass
             except AlreadyCalled:
                 pass
-
-    @inlineCallbacks
-    def task_errand_statuses(self):
-        from coldstar.simargl.client_db_errands import Errand, rbErrandStatus
-
-        with self.db.context_session() as session:
-            now = datetime.datetime.now()
-            to_update = session.query(Errand).join(rbErrandStatus).filter(Errand.deleted == 0, rbErrandStatus.code == 'waiting').all()
-            for errand in to_update:
-                if errand.plannedExecDate.date() < now.date() and not errand.execDate:
-                    errand.status = session.query(rbErrandStatus).filter(rbErrandStatus.code == 'expired').first()
-                    session.add(errand)
-            session.commit()
