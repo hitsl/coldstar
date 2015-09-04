@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import re
-import datetime
-from libcoldstar.plugin_helpers import ColdstarPlugin, Dependency
+
 from twisted.application.service import Service
-from twisted.internet.defer import inlineCallbacks
+
+from libcoldstar.plugin_helpers import ColdstarPlugin, Dependency
 
 
 class CronTask(object):
@@ -26,18 +26,17 @@ class ScheduleManager(Service, ColdstarPlugin):
 
     def __init__(self, config):
         self.task_functions = {}
-        mixin_names = config.get('mixins', '').split(' ')
-        print(mixin_names)
-        for mn in mixin_names:
-            print 'Checking', mn
+        self.schedules = {}
+
+        for mn in config.get('mixins', '').split(' '):
+            if '.' not in mn:
+                continue
             module_name, func_name = mn.rsplit('.', 1)
             module = __import__(module_name, globals(), locals(), [func_name])
-            func = getattr(module, func_name)
-            self.task_functions[func_name] = func
-        self.schedules = {}
-        self.set_config()
+            self.task_functions[func_name] = getattr(module, func_name)
 
-    def set_config(self):
+    @db.on
+    def set_config(self, db):
         from libsch_manager.txscheduling.cron import parseCronEntry, CronSchedule
         from libsch_manager.txscheduling.task import ScheduledCall
 
@@ -89,7 +88,6 @@ class ScheduleManager(Service, ColdstarPlugin):
     def startService(self, now=True):
         # log.debug(u'Запуск службы расписаний')
         for name, (schedule, call) in self.schedules.iteritems():
-            print(name, schedule, call)
             call.start(schedule, now=now)
 
     def stopService(self):
