@@ -5,4 +5,4 @@ from . import service
 
 
 def make(config):
-    return service.ScheduleManager()
+    return service.ScheduleManager(config)
