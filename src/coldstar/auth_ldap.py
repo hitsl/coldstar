@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from ldaptor.protocols.ldap.ldaperrors import LDAPException
-from libcoldstar.plugin_helpers import ColdstarPlugin
+from coldstar.auth_mis import MisAuthObject
+from coldstar.auth_mis import Person
+from libcoldstar.plugin_helpers import ColdstarPlugin, Dependency
 from twisted.internet import defer
 from zope.interface import implementer
 from libcastiel.exceptions import EInvalidCredentials
 from libcastiel.interfaces import IAuthObject, IAuthenticator
+from libcoldstar.twisted_helpers import deferred_to_thread
 
 __author__ = 'viruzzz-kun'
+
 
 @implementer(IAuthObject)
 class LdapAuthObject(object):
@@ -37,11 +40,12 @@ class LdapAuthObject(object):
 @implementer(IAuthenticator)
 class LdapAuthenticator(ColdstarPlugin):
     signal_name = 'libcoldstar.auth'
+    db = Dependency('coldstar.db')
 
     @defer.inlineCallbacks
     def get_user(self, login, password):
         from twisted.internet import reactor
-        from ldaptor.protocols.ldap import ldapconnector, ldapclient, ldapsyntax
+        from ldaptor.protocols.ldap import ldapconnector, ldapclient, ldapsyntax, ldaperrors
 
         if isinstance(login, unicode):
             login = login.encode('utf-8')
@@ -53,25 +57,37 @@ class LdapAuthenticator(ColdstarPlugin):
         basedn = self.config.get('base_dn', 'OU=FNKC,DC=fccho-moscow,DC=ru')
         binddn, bindpw = login, password
 
-        query = '(sAMAccountName=%s)' % login
+        # query = '(sAMAccountName=%s)' % login
         c = ldapconnector.LDAPClientCreator(reactor, ldapclient.LDAPClient)
         overrides = {basedn: (server_ip, server_port)}
         client = yield c.connect(basedn, overrides=overrides)
         try:
             yield client.bind(binddn, bindpw)
-        except LDAPException as e:
+        except ldaperrors.LDAPException as e:
             if e.name == 'invalidCredentials':
                 raise EInvalidCredentials()
             raise
-        o = ldapsyntax.LDAPEntry(client, basedn)
-        results = yield o.search(filterText=query, sizeLimit=1)
-        if not results:
-            raise EInvalidCredentials()
-        result = dict(
-            (name, value[0])
-            for name, value in results[0].items()
-        )
-        defer.returnValue(LdapAuthObject(result))
+        result = yield self.get_user_int(login)
+        defer.returnValue(result)
+        # o = ldapsyntax.LDAPEntry(client, basedn)
+        # results = yield o.search(filterText=query, sizeLimit=1)
+        # if not results:
+        #     raise EInvalidCredentials()
+        # result = dict(
+        #     (name, value[0])
+        #     for name, value in results[0].items()
+        # )
+        # defer.returnValue(LdapAuthObject(result))
+
+    @deferred_to_thread
+    def get_user_int(self, login):
+        if not self.db:
+            raise Exception('Database is not initialized')
+        with self.db.context_session(True) as session:
+            result = session.query(Person).filter(Person.login == login).first()
+            if result:
+                return MisAuthObject(result)
+            raise EInvalidCredentials
 
 
 def make(config):
